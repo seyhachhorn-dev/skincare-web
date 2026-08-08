@@ -1,0 +1,120 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Category;
+use App\Models\Product;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
+use Tests\TestCase;
+
+class ProductManagementTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private function admin(): User
+    {
+        $admin = User::factory()->create();
+        $admin->role = 'admin';
+        $admin->save();
+
+        return $admin;
+    }
+
+    public function test_admin_can_create_a_product(): void
+    {
+        Sanctum::actingAs($this->admin());
+        $category = Category::factory()->create();
+
+        $response = $this->postJson('/api/products', [
+            'category_id' => $category->id,
+            'name' => 'New Serum',
+            'description' => 'A brand new serum.',
+            'price' => 850,
+            'image' => 'assets/images/pro1.png',
+            'brand' => 'The Ordinary',
+            'size' => '30 ml',
+        ]);
+
+        $response->assertCreated()->assertJsonPath('data.name', 'New Serum');
+        $this->assertDatabaseHas('products', ['name' => 'New Serum', 'price' => 850]);
+    }
+
+    public function test_regular_user_cannot_create_a_product(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $response = $this->postJson('/api/products', [
+            'name' => 'New Serum',
+            'price' => 850,
+            'image' => 'assets/images/pro1.png',
+        ]);
+
+        $response->assertStatus(403);
+        $this->assertDatabaseMissing('products', ['name' => 'New Serum']);
+    }
+
+    public function test_guest_cannot_create_a_product(): void
+    {
+        $response = $this->postJson('/api/products', [
+            'name' => 'New Serum',
+            'price' => 850,
+            'image' => 'assets/images/pro1.png',
+        ]);
+
+        $response->assertStatus(401);
+    }
+
+    public function test_admin_can_update_a_product(): void
+    {
+        Sanctum::actingAs($this->admin());
+        $product = Product::factory()->create(['price' => 500]);
+
+        $response = $this->putJson("/api/products/{$product->id}", ['price' => 750]);
+
+        $response->assertOk()->assertJsonPath('data.price', 750);
+    }
+
+    public function test_regular_user_cannot_update_a_product(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+        $product = Product::factory()->create(['price' => 500]);
+
+        $response = $this->putJson("/api/products/{$product->id}", ['price' => 750]);
+
+        $response->assertStatus(403);
+        $this->assertDatabaseHas('products', ['id' => $product->id, 'price' => 500]);
+    }
+
+    public function test_admin_can_delete_a_product(): void
+    {
+        Sanctum::actingAs($this->admin());
+        $product = Product::factory()->create();
+
+        $response = $this->deleteJson("/api/products/{$product->id}");
+
+        $response->assertOk();
+        $this->assertDatabaseMissing('products', ['id' => $product->id]);
+    }
+
+    public function test_regular_user_cannot_delete_a_product(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+        $product = Product::factory()->create();
+
+        $response = $this->deleteJson("/api/products/{$product->id}");
+
+        $response->assertStatus(403);
+        $this->assertDatabaseHas('products', ['id' => $product->id]);
+    }
+
+    public function test_creating_a_product_requires_required_fields(): void
+    {
+        Sanctum::actingAs($this->admin());
+
+        $response = $this->postJson('/api/products', []);
+
+        $response->assertStatus(422)->assertJsonValidationErrors(['name', 'price', 'image']);
+    }
+}

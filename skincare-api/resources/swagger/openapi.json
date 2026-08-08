@@ -1,0 +1,958 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Hinata Skincare API",
+    "description": "REST API backing the skincare_mobile_app Flutter app. Auth via Laravel Sanctum bearer tokens.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    { "url": "/api" }
+  ],
+  "security": [
+    { "bearerAuth": [] }
+  ],
+  "tags": [
+    { "name": "Authentication" },
+    { "name": "Profile" },
+    { "name": "Products" },
+    { "name": "Categories" },
+    { "name": "Favorites" },
+    { "name": "Cart" },
+    { "name": "Addresses" },
+    { "name": "Orders" }
+  ],
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Register a new account",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "email", "password", "password_confirmation"],
+                "properties": {
+                  "name": { "type": "string", "example": "Jane Doe" },
+                  "email": { "type": "string", "format": "email", "example": "jane@example.com" },
+                  "password": { "type": "string", "format": "password", "example": "password123" },
+                  "password_confirmation": { "type": "string", "format": "password", "example": "password123" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Registration successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    { "type": "object", "properties": { "data": { "$ref": "#/components/schemas/AuthPayload" } } }
+                  ]
+                }
+              }
+            }
+          },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Log in with email and password",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": { "type": "string", "format": "email" },
+                  "password": { "type": "string", "format": "password" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    { "type": "object", "properties": { "data": { "$ref": "#/components/schemas/AuthPayload" } } }
+                  ]
+                }
+              }
+            }
+          },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Revoke the current access token",
+        "responses": {
+          "200": { "$ref": "#/components/responses/NullData" },
+          "401": { "$ref": "#/components/responses/Unauthenticated" }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Get the authenticated user",
+        "responses": {
+          "200": {
+            "description": "Current user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    { "type": "object", "properties": { "data": { "$ref": "#/components/schemas/User" } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" }
+        }
+      }
+    },
+    "/profile": {
+      "patch": {
+        "tags": ["Profile"],
+        "summary": "Update the authenticated user's name, email, and/or avatar",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "email": { "type": "string", "format": "email" },
+                  "avatar": { "type": "string", "format": "binary" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Profile updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    { "type": "object", "properties": { "data": { "$ref": "#/components/schemas/User" } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/products": {
+      "get": {
+        "tags": ["Products"],
+        "summary": "List products",
+        "security": [],
+        "parameters": [
+          { "name": "search", "in": "query", "schema": { "type": "string" }, "description": "Filter by name (partial match)" },
+          { "name": "category_id", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Products retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    { "type": "object", "properties": { "data": { "type": "array", "items": { "$ref": "#/components/schemas/Product" } } } }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Products"],
+        "summary": "Create a product",
+        "description": "Requires an authenticated user with role=admin.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/ProductInput" } }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Product created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    { "type": "object", "properties": { "data": { "$ref": "#/components/schemas/Product" } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/products/{product}": {
+      "get": {
+        "tags": ["Products"],
+        "summary": "Get a single product",
+        "security": [],
+        "parameters": [
+          { "name": "product", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Product",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    { "type": "object", "properties": { "data": { "$ref": "#/components/schemas/Product" } } }
+                  ]
+                }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "put": {
+        "tags": ["Products"],
+        "summary": "Update a product",
+        "description": "Requires an authenticated user with role=admin.",
+        "parameters": [
+          { "name": "product", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/ProductInput" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Product updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    { "type": "object", "properties": { "data": { "$ref": "#/components/schemas/Product" } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      },
+      "delete": {
+        "tags": ["Products"],
+        "summary": "Delete a product",
+        "description": "Requires an authenticated user with role=admin.",
+        "parameters": [
+          { "name": "product", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "$ref": "#/components/responses/NullData" },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/categories": {
+      "get": {
+        "tags": ["Categories"],
+        "summary": "List categories",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Categories retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    { "type": "object", "properties": { "data": { "type": "array", "items": { "$ref": "#/components/schemas/Category" } } } }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Categories"],
+        "summary": "Create a category",
+        "description": "Requires an authenticated user with role=admin.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/CategoryInput" } }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Category created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    { "type": "object", "properties": { "data": { "$ref": "#/components/schemas/Category" } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/categories/{category}": {
+      "put": {
+        "tags": ["Categories"],
+        "summary": "Update a category",
+        "description": "Requires an authenticated user with role=admin.",
+        "parameters": [
+          { "name": "category", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/CategoryInput" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Category updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    { "type": "object", "properties": { "data": { "$ref": "#/components/schemas/Category" } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      },
+      "delete": {
+        "tags": ["Categories"],
+        "summary": "Delete a category",
+        "description": "Requires an authenticated user with role=admin. Products in this category have their category_id set to null, they are not deleted.",
+        "parameters": [
+          { "name": "category", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "$ref": "#/components/responses/NullData" },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/favorites": {
+      "get": {
+        "tags": ["Favorites"],
+        "summary": "List the authenticated user's saved products",
+        "responses": {
+          "200": {
+            "description": "Favorites retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    { "type": "object", "properties": { "data": { "type": "array", "items": { "$ref": "#/components/schemas/Product" } } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" }
+        }
+      },
+      "post": {
+        "tags": ["Favorites"],
+        "summary": "Save a product (idempotent)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "type": "object", "required": ["product_id"], "properties": { "product_id": { "type": "integer" } } }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Product saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    { "type": "object", "properties": { "data": { "$ref": "#/components/schemas/Product" } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/favorites/{product}": {
+      "delete": {
+        "tags": ["Favorites"],
+        "summary": "Remove a product from favorites",
+        "parameters": [
+          { "name": "product", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "$ref": "#/components/responses/NullData" },
+          "401": { "$ref": "#/components/responses/Unauthenticated" }
+        }
+      }
+    },
+    "/cart": {
+      "get": {
+        "tags": ["Cart"],
+        "summary": "Get the authenticated user's cart",
+        "responses": {
+          "200": {
+            "description": "Cart retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "items": { "type": "array", "items": { "$ref": "#/components/schemas/CartItem" } },
+                            "subtotal": { "type": "integer", "example": 1398 },
+                            "points_earned": { "type": "integer", "example": 140 }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" }
+        }
+      }
+    },
+    "/cart/items": {
+      "post": {
+        "tags": ["Cart"],
+        "summary": "Add a product to the cart (increments quantity if already present)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["product_id"],
+                "properties": {
+                  "product_id": { "type": "integer" },
+                  "quantity": { "type": "integer", "minimum": 1, "default": 1 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Item added to cart",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    { "type": "object", "properties": { "data": { "$ref": "#/components/schemas/CartItem" } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/cart/items/{cartItem}": {
+      "patch": {
+        "tags": ["Cart"],
+        "summary": "Update a cart item's quantity",
+        "parameters": [
+          { "name": "cartItem", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "type": "object", "required": ["quantity"], "properties": { "quantity": { "type": "integer", "minimum": 1 } } }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cart item updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    { "type": "object", "properties": { "data": { "$ref": "#/components/schemas/CartItem" } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      },
+      "delete": {
+        "tags": ["Cart"],
+        "summary": "Remove a cart item",
+        "parameters": [
+          { "name": "cartItem", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "$ref": "#/components/responses/NullData" },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/addresses": {
+      "get": {
+        "tags": ["Addresses"],
+        "summary": "List the authenticated user's addresses",
+        "responses": {
+          "200": {
+            "description": "Addresses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    { "type": "object", "properties": { "data": { "type": "array", "items": { "$ref": "#/components/schemas/Address" } } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" }
+        }
+      },
+      "post": {
+        "tags": ["Addresses"],
+        "summary": "Create an address",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/AddressInput" } }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Address created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    { "type": "object", "properties": { "data": { "$ref": "#/components/schemas/Address" } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/addresses/{address}": {
+      "put": {
+        "tags": ["Addresses"],
+        "summary": "Update an address (must belong to the authenticated user)",
+        "parameters": [
+          { "name": "address", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/AddressInput" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Address updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    { "type": "object", "properties": { "data": { "$ref": "#/components/schemas/Address" } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      },
+      "delete": {
+        "tags": ["Addresses"],
+        "summary": "Delete an address (must belong to the authenticated user)",
+        "parameters": [
+          { "name": "address", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "$ref": "#/components/responses/NullData" },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/orders": {
+      "get": {
+        "tags": ["Orders"],
+        "summary": "List the authenticated user's orders",
+        "responses": {
+          "200": {
+            "description": "Orders retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    { "type": "object", "properties": { "data": { "type": "array", "items": { "$ref": "#/components/schemas/Order" } } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" }
+        }
+      },
+      "post": {
+        "tags": ["Orders"],
+        "summary": "Place an order from the authenticated user's current cart",
+        "description": "Line items and prices are always taken from the server-side cart, never from the request. Fails with 422 if the cart is empty or address_id doesn't belong to the authenticated user.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["address_id", "payment_method", "shipping_method"],
+                "properties": {
+                  "address_id": { "type": "integer" },
+                  "payment_method": { "type": "string", "enum": ["apple_pay", "paypal"] },
+                  "shipping_method": { "type": "string", "enum": ["dhl", "inpost"] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Order placed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    { "type": "object", "properties": { "data": { "$ref": "#/components/schemas/Order" } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/orders/{order}": {
+      "get": {
+        "tags": ["Orders"],
+        "summary": "Get a single order (must belong to the authenticated user)",
+        "parameters": [
+          { "name": "order", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    { "type": "object", "properties": { "data": { "$ref": "#/components/schemas/Order" } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Sanctum personal access token, returned from /auth/register or /auth/login. Send as `Authorization: Bearer {token}`."
+      }
+    },
+    "schemas": {
+      "Envelope": {
+        "type": "object",
+        "properties": {
+          "message": { "type": "string", "example": "Success" },
+          "data": {}
+        }
+      },
+      "AuthPayload": {
+        "type": "object",
+        "properties": {
+          "user": { "$ref": "#/components/schemas/User" },
+          "token": { "type": "string", "example": "1|q4QCxc2XDpK4EIUv4tBVxUNWVe7ntQmTHRjO73zw3c8685c9" }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 1 },
+          "name": { "type": "string", "example": "Jane Doe" },
+          "email": { "type": "string", "format": "email" },
+          "avatar": { "type": "string", "nullable": true, "example": "avatars/abc123.jpg" },
+          "points_balance": { "type": "integer", "example": 140 },
+          "orders_count": { "type": "integer", "example": 3, "description": "Only present on GET /auth/me" }
+        }
+      },
+      "Product": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "1", "description": "Stringified to match the mobile app's Product.id contract" },
+          "category_id": { "type": "integer", "nullable": true },
+          "name": { "type": "string", "example": "Granactive Retinoid 5%" },
+          "description": { "type": "string" },
+          "price": { "type": "integer", "example": 699 },
+          "image": { "type": "string", "example": "assets/images/pro1.png" },
+          "brand": { "type": "string", "example": "The Ordinary" },
+          "size": { "type": "string", "example": "30 ml" }
+        }
+      },
+      "ProductInput": {
+        "type": "object",
+        "required": ["name", "price", "image"],
+        "properties": {
+          "category_id": { "type": "integer", "nullable": true },
+          "name": { "type": "string", "example": "Granactive Retinoid 5%" },
+          "description": { "type": "string", "nullable": true },
+          "price": { "type": "integer", "minimum": 0, "example": 699 },
+          "image": { "type": "string", "example": "assets/images/pro1.png" },
+          "brand": { "type": "string", "nullable": true, "example": "The Ordinary" },
+          "size": { "type": "string", "nullable": true, "example": "30 ml" }
+        }
+      },
+      "Category": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "1" },
+          "name": { "type": "string", "example": "Serum" },
+          "icon": { "type": "string", "example": "🌸" }
+        }
+      },
+      "CategoryInput": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string", "example": "Serum" },
+          "icon": { "type": "string", "nullable": true, "example": "🌸" }
+        }
+      },
+      "CartItem": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "quantity": { "type": "integer", "example": 2 },
+          "total": { "type": "integer", "example": 1398, "description": "quantity * product.price" },
+          "product": { "$ref": "#/components/schemas/Product" }
+        }
+      },
+      "AddressInput": {
+        "type": "object",
+        "required": ["province", "district", "commune", "house_no", "type"],
+        "properties": {
+          "province": { "type": "string" },
+          "district": { "type": "string" },
+          "commune": { "type": "string" },
+          "house_no": { "type": "string" },
+          "pickup_point": { "type": "string", "nullable": true },
+          "location": { "type": "string", "nullable": true },
+          "type": { "type": "string", "enum": ["home", "office", "school", "other"] },
+          "is_default": { "type": "boolean", "default": false }
+        }
+      },
+      "Address": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "province": { "type": "string" },
+          "district": { "type": "string" },
+          "commune": { "type": "string" },
+          "house_no": { "type": "string" },
+          "pickup_point": { "type": "string", "nullable": true },
+          "location": { "type": "string", "nullable": true },
+          "type": { "type": "string", "enum": ["home", "office", "school", "other"] },
+          "is_default": { "type": "boolean" }
+        }
+      },
+      "OrderItem": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "quantity": { "type": "integer" },
+          "unit_price": { "type": "integer", "description": "Product price snapshotted at the time of purchase" },
+          "product": { "$ref": "#/components/schemas/Product" }
+        }
+      },
+      "Order": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "order_number": { "type": "string", "example": "FD91793510" },
+          "status": { "type": "string", "enum": ["processing", "delivered", "cancelled"] },
+          "total": { "type": "integer", "example": 1398 },
+          "points_earned": { "type": "integer", "example": 140, "description": "10% of total, credited to the user's points_balance" },
+          "payment_method": { "type": "string", "enum": ["apple_pay", "paypal"] },
+          "shipping_method": { "type": "string", "enum": ["dhl", "inpost"] },
+          "item_count": { "type": "integer", "example": 2, "description": "Sum of item quantities" },
+          "date": { "type": "string", "format": "date-time" },
+          "address": { "$ref": "#/components/schemas/Address" },
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/OrderItem" } }
+        }
+      }
+    },
+    "responses": {
+      "NullData": {
+        "description": "Success, no content",
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                { "$ref": "#/components/schemas/Envelope" },
+                { "type": "object", "properties": { "data": { "nullable": true, "example": null } } }
+              ]
+            }
+          }
+        }
+      },
+      "Unauthenticated": {
+        "description": "Missing or invalid bearer token",
+        "content": {
+          "application/json": {
+            "schema": { "type": "object", "properties": { "message": { "type": "string", "example": "Unauthenticated." } } }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Authenticated, but this resource belongs to another user",
+        "content": {
+          "application/json": {
+            "schema": { "type": "object", "properties": { "message": { "type": "string", "example": "This action is unauthorized." } } }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Resource not found",
+        "content": {
+          "application/json": {
+            "schema": { "type": "object", "properties": { "message": { "type": "string", "example": "No query results for model." } } }
+          }
+        }
+      },
+      "ValidationError": {
+        "description": "Validation failed",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": { "type": "string", "example": "The email field is required." },
+                "errors": {
+                  "type": "object",
+                  "additionalProperties": { "type": "array", "items": { "type": "string" } }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
