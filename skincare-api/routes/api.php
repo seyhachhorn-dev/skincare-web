@@ -8,11 +8,17 @@ use App\Http\Controllers\Api\FavoriteController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
-    Route::post('register', [AuthController::class, 'register']);
-    Route::post('login', [AuthController::class, 'login']);
+    // Throttled per IP to slow down credential-stuffing / registration
+    // spam — 6 attempts/minute matches common practice (e.g. Fortify's
+    // default login throttle).
+    Route::middleware('throttle:6,1')->group(function () {
+        Route::post('register', [AuthController::class, 'register']);
+        Route::post('login', [AuthController::class, 'login']);
+    });
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('logout', [AuthController::class, 'logout']);
@@ -34,6 +40,9 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::put('categories/{category}', [CategoryController::class, 'update']);
     Route::patch('categories/{category}', [CategoryController::class, 'update']);
     Route::delete('categories/{category}', [CategoryController::class, 'destroy']);
+
+    Route::get('users', [UserController::class, 'index']);
+    Route::patch('users/{user}/role', [UserController::class, 'updateRole']);
 });
 
 Route::middleware('auth:sanctum')->group(function () {

@@ -47,11 +47,23 @@ return [
 
             /*
              * The server URL configuration for the swagger file.
-             * Suffixed with /api since all routes in routes/api.php live
-             * under that prefix — without it, "Try it out" would hit the
-             * wrong base path.
+             *
+             * On real HTTP requests this resolves from the current
+             * request's actual host (via url()) rather than the static
+             * APP_URL env value — APP_URL rarely includes the port
+             * `php artisan serve` happens to be running on, and a mismatch
+             * there means every "Try it out" request silently goes to the
+             * wrong address. url() needs a bound Request though, which
+             * doesn't exist for `artisan` console commands (config files
+             * load for those too) — app()->runningInConsole() guards that,
+             * falling back to APP_URL there since the value is never used
+             * outside an HTTP request anyway.
+             * (If you run `config:cache`, this freezes at cache-time — fine
+             * for a fixed-URL deployment, just re-cache if the URL changes.)
              */
-            'server_url' => rtrim(env('APP_URL', 'http://localhost'), '/') . '/api',
+            'server_url' => app()->runningInConsole()
+                ? rtrim(env('APP_URL', 'http://localhost'), '/') . '/api'
+                : url('/api'),
 
             /*
              * Append the version to the end of server url.

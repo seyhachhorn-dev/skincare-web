@@ -19,7 +19,8 @@
     { "name": "Favorites" },
     { "name": "Cart" },
     { "name": "Addresses" },
-    { "name": "Orders" }
+    { "name": "Orders" },
+    { "name": "Users" }
   ],
   "paths": {
     "/auth/register": {
@@ -58,7 +59,8 @@
               }
             }
           },
-          "422": { "$ref": "#/components/responses/ValidationError" }
+          "422": { "$ref": "#/components/responses/ValidationError" },
+          "429": { "$ref": "#/components/responses/TooManyRequests" }
         }
       }
     },
@@ -96,7 +98,8 @@
               }
             }
           },
-          "422": { "$ref": "#/components/responses/ValidationError" }
+          "422": { "$ref": "#/components/responses/ValidationError" },
+          "429": { "$ref": "#/components/responses/TooManyRequests" }
         }
       }
     },
@@ -757,6 +760,73 @@
           "404": { "$ref": "#/components/responses/NotFound" }
         }
       }
+    },
+    "/users": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "List all users",
+        "description": "Requires an authenticated user with role=admin.",
+        "responses": {
+          "200": {
+            "description": "Users retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    { "type": "object", "properties": { "data": { "type": "array", "items": { "$ref": "#/components/schemas/User" } } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/users/{user}/role": {
+      "patch": {
+        "tags": ["Users"],
+        "summary": "Assign a user's role",
+        "description": "Requires an authenticated user with role=admin. New registrations always default to role=user; this is the only way to promote someone to admin.",
+        "parameters": [
+          { "name": "user", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["role"],
+                "properties": {
+                  "role": { "type": "string", "enum": ["user", "admin"] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User role updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    { "type": "object", "properties": { "data": { "$ref": "#/components/schemas/User" } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
     }
   },
   "components": {
@@ -789,6 +859,7 @@
           "name": { "type": "string", "example": "Jane Doe" },
           "email": { "type": "string", "format": "email" },
           "avatar": { "type": "string", "nullable": true, "example": "avatars/abc123.jpg" },
+          "role": { "type": "string", "enum": ["user", "admin"], "example": "user" },
           "points_balance": { "type": "integer", "example": 140 },
           "orders_count": { "type": "integer", "example": 3, "description": "Only present on GET /auth/me" }
         }
@@ -932,7 +1003,15 @@
         "description": "Resource not found",
         "content": {
           "application/json": {
-            "schema": { "type": "object", "properties": { "message": { "type": "string", "example": "No query results for model." } } }
+            "schema": { "type": "object", "properties": { "message": { "type": "string", "example": "Resource not found." } } }
+          }
+        }
+      },
+      "TooManyRequests": {
+        "description": "Rate limit exceeded (6 requests/minute per IP on register and login)",
+        "content": {
+          "application/json": {
+            "schema": { "type": "object", "properties": { "message": { "type": "string", "example": "Too Many Attempts." } } }
           }
         }
       },
