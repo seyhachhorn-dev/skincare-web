@@ -22,11 +22,8 @@ class AuthController extends Controller
             'password' => $request->validated('password'),
         ]);
 
-        $token = $user->createToken('mobile')->plainTextToken;
-
         return $this->respond([
             'user' => new UserResource($user),
-            'token' => $token,
         ], 'Registration successful', 201);
     }
 

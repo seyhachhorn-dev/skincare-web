@@ -11,6 +11,10 @@ abstract class Controller
 
     protected function respond(mixed $data, string $message = 'Success', int $status = 200): JsonResponse
     {
-        return response()->json(['message' => $message, 'data' => $data], $status);
+        return response()->json([
+            'status' => true,
+            'message' => $message,
+            'data' => $data,
+        ], $status);
     }
 }
