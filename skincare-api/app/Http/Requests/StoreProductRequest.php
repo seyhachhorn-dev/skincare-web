@@ -19,7 +19,7 @@ class StoreProductRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'price' => ['required', 'integer', 'min:0'],
-            'image' => ['required', 'string', 'max:255'],
+            'image' => ['required', 'image', 'max:4096'],
             'brand' => ['nullable', 'string', 'max:255'],
             'size' => ['nullable', 'string', 'max:255'],
         ];

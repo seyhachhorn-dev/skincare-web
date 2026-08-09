@@ -18,7 +18,7 @@ class UpdateProductRequest extends FormRequest
             'name' => ['sometimes', 'string', 'max:255'],
             'description' => ['sometimes', 'nullable', 'string'],
             'price' => ['sometimes', 'integer', 'min:0'],
-            'image' => ['sometimes', 'string', 'max:255'],
+            'image' => ['sometimes', 'image', 'max:4096'],
             'brand' => ['sometimes', 'nullable', 'string', 'max:255'],
             'size' => ['sometimes', 'nullable', 'string', 'max:255'],
         ];

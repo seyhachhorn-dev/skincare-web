@@ -204,7 +204,21 @@
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": { "schema": { "$ref": "#/components/schemas/ProductInput" } }
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "price", "image"],
+                "properties": {
+                  "category_id": { "type": "integer", "nullable": true },
+                  "name": { "type": "string", "example": "Granactive Retinoid 5%" },
+                  "description": { "type": "string", "nullable": true },
+                  "price": { "type": "integer", "minimum": 0, "example": 699 },
+                  "image": { "type": "string", "format": "binary" },
+                  "brand": { "type": "string", "nullable": true, "example": "The Ordinary" },
+                  "size": { "type": "string", "nullable": true, "example": "30 ml" }
+                }
+              }
+            }
           }
         },
         "responses": {
@@ -261,7 +275,20 @@
         ],
         "requestBody": {
           "content": {
-            "application/json": { "schema": { "$ref": "#/components/schemas/ProductInput" } }
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "category_id": { "type": "integer", "nullable": true },
+                  "name": { "type": "string", "example": "Granactive Retinoid 5%" },
+                  "description": { "type": "string", "nullable": true },
+                  "price": { "type": "integer", "minimum": 0, "example": 699 },
+                  "image": { "type": "string", "format": "binary" },
+                  "brand": { "type": "string", "nullable": true, "example": "The Ordinary" },
+                  "size": { "type": "string", "nullable": true, "example": "30 ml" }
+                }
+              }
+            }
           }
         },
         "responses": {
@@ -875,19 +902,6 @@
           "image": { "type": "string", "example": "assets/images/pro1.png" },
           "brand": { "type": "string", "example": "The Ordinary" },
           "size": { "type": "string", "example": "30 ml" }
-        }
-      },
-      "ProductInput": {
-        "type": "object",
-        "required": ["name", "price", "image"],
-        "properties": {
-          "category_id": { "type": "integer", "nullable": true },
-          "name": { "type": "string", "example": "Granactive Retinoid 5%" },
-          "description": { "type": "string", "nullable": true },
-          "price": { "type": "integer", "minimum": 0, "example": 699 },
-          "image": { "type": "string", "example": "assets/images/pro1.png" },
-          "brand": { "type": "string", "nullable": true, "example": "The Ordinary" },
-          "size": { "type": "string", "nullable": true, "example": "30 ml" }
         }
       },
       "Category": {

@@ -12,6 +12,16 @@ class Product extends Model
 {
     use HasFactory;
 
+    // Same reasoning as User::$attributes — without this, a freshly created
+    // product that omits description/brand/size would serialize as null
+    // instead of the DB's '' default (visible immediately in the create
+    // response, before any later fresh() re-fetch corrects it).
+    protected $attributes = [
+        'description' => '',
+        'brand' => '',
+        'size' => '',
+    ];
+
     protected function casts(): array
     {
         return [
