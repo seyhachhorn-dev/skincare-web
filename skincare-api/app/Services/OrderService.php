@@ -35,6 +35,11 @@ class OrderService
                 'total' => $total,
                 'points_earned' => $pointsEarned,
                 'payment_method' => $paymentMethod,
+                // Apple Pay/PayPal are confirmed by the device's payment
+                // sheet before this request is made; Bakong KHQR is paid
+                // afterwards by scanning the QR code we generate next, so
+                // it starts pending until PaymentController confirms it.
+                'payment_status' => $paymentMethod === 'bakong_khqr' ? 'pending' : 'paid',
                 'shipping_method' => $shippingMethod,
             ]);
 

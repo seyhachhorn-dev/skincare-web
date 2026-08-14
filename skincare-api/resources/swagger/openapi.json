@@ -735,7 +735,7 @@
                 "required": ["address_id", "payment_method", "shipping_method"],
                 "properties": {
                   "address_id": { "type": "integer" },
-                  "payment_method": { "type": "string", "enum": ["apple_pay", "paypal"] },
+                  "payment_method": { "type": "string", "enum": ["apple_pay", "paypal", "bakong_khqr"] },
                   "shipping_method": { "type": "string", "enum": ["dhl", "inpost"] }
                 }
               }
@@ -785,6 +785,75 @@
           "401": { "$ref": "#/components/responses/Unauthenticated" },
           "403": { "$ref": "#/components/responses/Forbidden" },
           "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/orders/{order}/khqr": {
+      "post": {
+        "tags": ["Payments"],
+        "summary": "Generate a Bakong KHQR code for an order",
+        "description": "Order must belong to the authenticated user and have payment_method=bakong_khqr and payment_status=pending. Safe to call again before payment to re-fetch the same amount's code.",
+        "parameters": [
+          { "name": "order", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "KHQR code generated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "qr": { "type": "string", "description": "Raw EMV KHQR payload — render this as a QR code on the client" },
+                            "md5": { "type": "string", "description": "Hash identifying this QR code, used to poll payment status" }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/orders/{order}/khqr/status": {
+      "get": {
+        "tags": ["Payments"],
+        "summary": "Poll whether an order's Bakong KHQR payment has settled",
+        "description": "Intended to be polled by the client while the QR code is on screen. Flips the order to payment_status=paid the first time Bakong reports the transaction as settled.",
+        "parameters": [
+          { "name": "order", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    { "type": "object", "properties": { "data": { "type": "object", "properties": { "paid": { "type": "boolean" } } } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "422": { "$ref": "#/components/responses/ValidationError" }
         }
       }
     },
@@ -974,7 +1043,8 @@
           "status": { "type": "string", "enum": ["processing", "delivered", "cancelled"] },
           "total": { "type": "integer", "example": 1398 },
           "points_earned": { "type": "integer", "example": 140, "description": "10% of total, credited to the user's points_balance" },
-          "payment_method": { "type": "string", "enum": ["apple_pay", "paypal"] },
+          "payment_method": { "type": "string", "enum": ["apple_pay", "paypal", "bakong_khqr"] },
+          "payment_status": { "type": "string", "enum": ["pending", "paid"], "description": "pending only while payment_method is bakong_khqr and the QR hasn't been scanned yet" },
           "shipping_method": { "type": "string", "enum": ["dhl", "inpost"] },
           "item_count": { "type": "integer", "example": 2, "description": "Sum of item quantities" },
           "date": { "type": "string", "format": "date-time" },

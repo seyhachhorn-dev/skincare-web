@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    'bakong' => [
+        'token' => env('BAKONG_TOKEN'),
+        'account_id' => env('BAKONG_ACCOUNT_ID', 'seyha_chhorn@bkrt'),
+        'merchant_name' => env('BAKONG_MERCHANT_NAME', 'Seyha Chhorn'),
+        'merchant_city' => env('BAKONG_MERCHANT_CITY', 'Phnom Penh'),
+    ],
+
 ];

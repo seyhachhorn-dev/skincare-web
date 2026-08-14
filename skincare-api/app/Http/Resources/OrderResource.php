@@ -16,6 +16,7 @@ class OrderResource extends JsonResource
             'total' => $this->total,
             'points_earned' => $this->points_earned,
             'payment_method' => $this->payment_method,
+            'payment_status' => $this->payment_status,
             'shipping_method' => $this->shipping_method,
             'item_count' => $this->item_count,
             'date' => $this->created_at->toIso8601String(),

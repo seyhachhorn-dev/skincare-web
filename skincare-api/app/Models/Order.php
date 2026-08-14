@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 // trusted server-side create() call — PlaceOrderRequest never accepts
 // them as client input in the first place, so there's nothing to mass-
 // assign from an untrusted request even though they're fillable here.
-#[Fillable(['user_id', 'address_id', 'status', 'order_number', 'total', 'points_earned', 'payment_method', 'shipping_method'])]
+#[Fillable(['user_id', 'address_id', 'status', 'order_number', 'total', 'points_earned', 'payment_method', 'payment_status', 'khqr_md5', 'shipping_method'])]
 class Order extends Model
 {
     use HasFactory;

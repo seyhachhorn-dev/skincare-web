@@ -21,6 +21,7 @@ class OrderFactory extends Factory
             'total' => fake()->numberBetween(500, 5000),
             'points_earned' => fake()->numberBetween(50, 500),
             'payment_method' => fake()->randomElement(['apple_pay', 'paypal']),
+            'payment_status' => 'paid',
             'shipping_method' => fake()->randomElement(['dhl', 'inpost']),
         ];
     }

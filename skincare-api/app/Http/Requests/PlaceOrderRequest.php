@@ -20,7 +20,7 @@ class PlaceOrderRequest extends FormRequest
                 'integer',
                 Rule::exists('addresses', 'id')->where('user_id', $this->user()->id),
             ],
-            'payment_method' => ['required', Rule::in(['apple_pay', 'paypal'])],
+            'payment_method' => ['required', Rule::in(['apple_pay', 'paypal', 'bakong_khqr'])],
             'shipping_method' => ['required', Rule::in(['dhl', 'inpost'])],
         ];
     }
