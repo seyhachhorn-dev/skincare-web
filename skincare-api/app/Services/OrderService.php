@@ -31,7 +31,9 @@ class OrderService
             $order = $user->orders()->create([
                 'address_id' => $addressId,
                 'order_number' => $this->generateOrderNumber(),
-                'status' => 'processing',
+                'status' => $paymentMethod === 'bakong_khqr'
+                    ? Order::STATUS_AWAITING_PAYMENT
+                    : Order::STATUS_PROCESSING,
                 'total' => $total,
                 'points_earned' => $pointsEarned,
                 'payment_method' => $paymentMethod,
@@ -77,9 +79,43 @@ class OrderService
             }
 
             $order->user->decrement('points_balance', $order->points_earned);
-            $order->update(['status' => 'cancelled']);
+            $order->update(['status' => Order::STATUS_CANCELLED]);
 
             return $order;
+        });
+    }
+
+    /**
+     * Move a paid order through the fulfillment workflow. The allowed
+     * transitions deliberately prevent an unpaid, cancelled, or delivered
+     * order from being changed accidentally in the admin dashboard.
+     */
+    public function updateFulfillmentStatus(Order $order, string $status): Order
+    {
+        return DB::transaction(function () use ($order, $status) {
+            $order = Order::query()->lockForUpdate()->findOrFail($order->id);
+
+            if ($order->payment_status !== 'paid') {
+                throw ValidationException::withMessages([
+                    'status' => 'Only paid orders can be fulfilled.',
+                ]);
+            }
+
+            $allowedNextStatuses = match ($order->status) {
+                Order::STATUS_PROCESSING => [Order::STATUS_SHIPPED, Order::STATUS_DELIVERED],
+                Order::STATUS_SHIPPED => [Order::STATUS_DELIVERED],
+                default => [],
+            };
+
+            if (! in_array($status, $allowedNextStatuses, true)) {
+                throw ValidationException::withMessages([
+                    'status' => "Order cannot move from {$order->status} to {$status}.",
+                ]);
+            }
+
+            $order->update(['status' => $status]);
+
+            return $order->load(['user', 'items.product', 'address']);
         });
     }
 

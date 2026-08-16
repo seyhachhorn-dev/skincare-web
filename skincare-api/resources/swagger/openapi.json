@@ -887,6 +887,73 @@
         }
       }
     },
+    "/admin/orders": {
+      "get": {
+        "tags": ["Orders"],
+        "summary": "List all orders for the admin dashboard",
+        "description": "Requires an authenticated user with role=admin. Includes the customer, shipping address, and order items.",
+        "responses": {
+          "200": {
+            "description": "Orders retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    { "type": "object", "properties": { "data": { "type": "array", "items": { "$ref": "#/components/schemas/Order" } } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/admin/orders/{order}/status": {
+      "patch": {
+        "tags": ["Orders"],
+        "summary": "Update a paid order's fulfillment status",
+        "description": "Requires an authenticated user with role=admin. Valid transitions are processing → shipped/delivered and shipped → delivered. Unpaid, cancelled, and delivered orders cannot be changed.",
+        "parameters": [
+          { "name": "order", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                  "status": { "type": "string", "enum": ["shipped", "delivered"], "example": "shipped" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Order status updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    { "type": "object", "properties": { "data": { "$ref": "#/components/schemas/Order" } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
     "/users": {
       "get": {
         "tags": ["Users"],
@@ -1070,7 +1137,7 @@
         "properties": {
           "id": { "type": "integer" },
           "order_number": { "type": "string", "example": "FD91793510" },
-          "status": { "type": "string", "enum": ["processing", "delivered", "cancelled"] },
+          "status": { "type": "string", "enum": ["awaiting_payment", "processing", "shipped", "delivered", "cancelled"] },
           "total": { "type": "integer", "example": 1398 },
           "points_earned": { "type": "integer", "example": 140, "description": "10% of total, credited to the user's points_balance" },
           "payment_method": { "type": "string", "enum": ["apple_pay", "paypal", "bakong_khqr"] },
@@ -1078,8 +1145,17 @@
           "shipping_method": { "type": "string", "enum": ["dhl", "inpost"] },
           "item_count": { "type": "integer", "example": 2, "description": "Sum of item quantities" },
           "date": { "type": "string", "format": "date-time" },
+          "customer": { "$ref": "#/components/schemas/OrderCustomer", "description": "Included only in admin order responses" },
           "address": { "$ref": "#/components/schemas/Address" },
           "items": { "type": "array", "items": { "$ref": "#/components/schemas/OrderItem" } }
+        }
+      },
+      "OrderCustomer": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "name": { "type": "string", "example": "Jane Doe" },
+          "email": { "type": "string", "format": "email", "example": "jane@example.com" }
         }
       }
     },

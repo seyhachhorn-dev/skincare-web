@@ -20,6 +20,11 @@ class OrderResource extends JsonResource
             'shipping_method' => $this->shipping_method,
             'item_count' => $this->item_count,
             'date' => $this->created_at->toIso8601String(),
+            'customer' => $this->whenLoaded('user', fn () => [
+                'id' => $this->user->id,
+                'name' => $this->user->name,
+                'email' => $this->user->email,
+            ]),
             'address' => new AddressResource($this->whenLoaded('address')),
             'items' => OrderItemResource::collection($this->whenLoaded('items')),
         ];

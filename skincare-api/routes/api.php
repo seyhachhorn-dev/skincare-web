@@ -44,6 +44,9 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
 
     Route::get('users', [UserController::class, 'index']);
     Route::patch('users/{user}/role', [UserController::class, 'updateRole']);
+
+    Route::get('admin/orders', [OrderController::class, 'adminIndex']);
+    Route::patch('admin/orders/{order}/status', [OrderController::class, 'updateStatus']);
 });
 
 Route::middleware('auth:sanctum')->group(function () {
