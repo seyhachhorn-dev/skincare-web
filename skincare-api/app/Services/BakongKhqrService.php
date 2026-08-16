@@ -16,7 +16,7 @@ class BakongKhqrService
      * payload (rendered into a scannable code on the client) plus its MD5,
      * which is what Bakong's transaction lookup is keyed on.
      *
-     * @return array{qr: string, md5: string}
+     * @return array{qr: string, md5: string, merchant_name: string}
      */
     public function generate(Order $order): array
     {
@@ -36,6 +36,10 @@ class BakongKhqrService
         return [
             'qr' => $response->data['qr'],
             'md5' => $response->data['md5'],
+            // Sent along so the client can render it under the QR without
+            // hardcoding a name that could drift from the account it's
+            // actually paying into.
+            'merchant_name' => config('services.bakong.merchant_name'),
         ];
     }
 

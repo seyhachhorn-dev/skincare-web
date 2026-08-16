@@ -811,7 +811,8 @@
                           "type": "object",
                           "properties": {
                             "qr": { "type": "string", "description": "Raw EMV KHQR payload — render this as a QR code on the client" },
-                            "md5": { "type": "string", "description": "Hash identifying this QR code, used to poll payment status" }
+                            "md5": { "type": "string", "description": "Hash identifying this QR code, used to poll payment status" },
+                            "merchant_name": { "type": "string", "example": "Seyha Chhorn" }
                           }
                         }
                       }
@@ -845,6 +846,35 @@
                   "allOf": [
                     { "$ref": "#/components/schemas/Envelope" },
                     { "type": "object", "properties": { "data": { "type": "object", "properties": { "paid": { "type": "boolean" } } } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/orders/{order}/khqr/cancel": {
+      "post": {
+        "tags": ["Payments"],
+        "summary": "Cancel a still-unpaid Bakong KHQR order",
+        "description": "Order must belong to the authenticated user, have payment_method=bakong_khqr and payment_status=pending. Restores the order's items into the user's cart, reverses the points speculatively credited at order-placement time, and sets status=cancelled.",
+        "parameters": [
+          { "name": "order", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order cancelled and items returned to your cart",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    { "type": "object", "properties": { "data": { "$ref": "#/components/schemas/Order" } } }
                   ]
                 }
               }

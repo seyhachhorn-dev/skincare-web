@@ -66,4 +66,5 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('orders/{order}/khqr', [PaymentController::class, 'generateKhqr']);
     Route::get('orders/{order}/khqr/status', [PaymentController::class, 'khqrStatus']);
+    Route::post('orders/{order}/khqr/cancel', [PaymentController::class, 'cancelKhqr']);
 });

@@ -3,14 +3,18 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\OrderResource;
 use App\Models\Order;
 use App\Services\BakongKhqrService;
+use App\Services\OrderService;
 use Illuminate\Http\JsonResponse;
 
 class PaymentController extends Controller
 {
-    public function __construct(private readonly BakongKhqrService $khqr)
-    {
+    public function __construct(
+        private readonly BakongKhqrService $khqr,
+        private readonly OrderService $orders,
+    ) {
     }
 
     /**
@@ -62,5 +66,25 @@ class PaymentController extends Controller
         }
 
         return $this->respond(['paid' => $paid], $paid ? 'Payment confirmed' : 'Awaiting payment');
+    }
+
+    /**
+     * Called when the customer backs out of the KHQR screen without
+     * paying. Without this, the order (and the items it took from the
+     * cart) would just sit there in limbo — cancelling releases the
+     * items back into the cart and reverses the points that were
+     * speculatively credited when the order was placed.
+     */
+    public function cancelKhqr(Order $order): JsonResponse
+    {
+        $this->authorize('view', $order);
+
+        if ($order->payment_method !== 'bakong_khqr' || $order->payment_status !== 'pending') {
+            return $this->respond(null, 'This order cannot be cancelled.', 422);
+        }
+
+        $order = $this->orders->cancelPendingKhqrOrder($order);
+
+        return $this->respond(new OrderResource($order->load(['items.product', 'address'])), 'Order cancelled and items returned to your cart');
     }
 }

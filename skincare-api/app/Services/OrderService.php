@@ -58,6 +58,31 @@ class OrderService
         });
     }
 
+    /**
+     * Abandon a KHQR order the customer never paid for: releases the
+     * items back into their cart (so nothing is silently lost), reverses
+     * the points speculatively credited in placeOrder(), and marks the
+     * order cancelled. Caller (PaymentController) is responsible for
+     * checking the order is actually a still-pending KHQR order first.
+     */
+    public function cancelPendingKhqrOrder(Order $order): Order
+    {
+        return DB::transaction(function () use ($order) {
+            $order->loadMissing(['items', 'user']);
+
+            foreach ($order->items as $item) {
+                $cartItem = $order->user->cartItems()->firstOrNew(['product_id' => $item->product_id]);
+                $cartItem->quantity = ($cartItem->exists ? $cartItem->quantity : 0) + $item->quantity;
+                $cartItem->save();
+            }
+
+            $order->user->decrement('points_balance', $order->points_earned);
+            $order->update(['status' => 'cancelled']);
+
+            return $order;
+        });
+    }
+
     private function generateOrderNumber(): string
     {
         do {
