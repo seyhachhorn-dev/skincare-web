@@ -1,0 +1,39 @@
+/* ============================================================
+   Shared design tokens — "Field Apothecary" skincare brand
+   A clinical-botanical direction: sage paper, ink green, amber
+   glass-bottle accent. Fraunces for label-like display type,
+   Inter for body, IBM Plex Mono for dosages/SKUs/prices.
+   ============================================================ */
+
+:root {
+  /* Color */
+  --bg: #eef0e6;
+  --surface: #ffffff;
+  --surface-alt: #e3e6d7;
+  --ink: #232821;
+  --ink-soft: #5c6357;
+  --ink-faint: #8b9182;
+  --moss: #566b4f;
+  --moss-dark: #3a4a35;
+  --amber: #b9863e;
+  --amber-soft: #e9d9b8;
+  --line: #d3d6c6;
+  --danger: #a6493a;
+
+  /* Type */
+  --font-display: "Fraunces", "Iowan Old Style", Georgia, serif;
+  --font-body: "Inter", -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", "SF Mono", monospace;
+
+  /* Scale */
+  --step-0: 0.875rem;
+  --step-1: 1rem;
+  --step-2: 1.25rem;
+  --step-3: 1.75rem;
+  --step-4: 2.5rem;
+
+  /* Radius / motion */
+  --radius-sm: 3px;
+  --radius-md: 6px;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+}
