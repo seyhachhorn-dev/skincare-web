@@ -5,7 +5,7 @@ namespace App\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class PlaceOrderRequest extends FormRequest
+class CreateStripeCheckoutRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -20,7 +20,6 @@ class PlaceOrderRequest extends FormRequest
                 'integer',
                 Rule::exists('addresses', 'id')->where('user_id', $this->user()->id),
             ],
-            'payment_method' => ['required', Rule::in(['bakong_khqr'])],
             'shipping_method' => ['required', Rule::in(['dhl', 'inpost'])],
         ];
     }

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Address;
 use App\Models\CartItem;
+use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -24,20 +25,23 @@ class OrderTest extends TestCase
 
         $response = $this->postJson('/api/orders', [
             'address_id' => $address->id,
-            'payment_method' => 'apple_pay',
+            'payment_method' => 'bakong_khqr',
             'shipping_method' => 'dhl',
         ]);
 
         $response->assertCreated()
             ->assertJsonPath('data.total', 2000)
             ->assertJsonPath('data.points_earned', 200)
-            ->assertJsonPath('data.item_count', 2);
+            ->assertJsonPath('data.item_count', 2)
+            ->assertJsonPath('data.status', 'awaiting_payment')
+            ->assertJsonPath('data.payment_status', 'pending');
 
         $this->assertMatchesRegularExpression('/^FD\d{8}$/', $response->json('data.order_number'));
 
-        // Cart is cleared and points are credited server-side.
+        // Cart is cleared, but points are only credited after payment is
+        // confirmed by a provider.
         $this->assertDatabaseCount('cart_items', 0);
-        $this->assertDatabaseHas('users', ['id' => $user->id, 'points_balance' => 200]);
+        $this->assertDatabaseHas('users', ['id' => $user->id, 'points_balance' => 0]);
         $this->assertDatabaseHas('order_items', ['product_id' => $product->id, 'quantity' => 2, 'unit_price' => 1000]);
     }
 
@@ -49,7 +53,7 @@ class OrderTest extends TestCase
 
         $response = $this->postJson('/api/orders', [
             'address_id' => $address->id,
-            'payment_method' => 'apple_pay',
+            'payment_method' => 'bakong_khqr',
             'shipping_method' => 'dhl',
         ]);
 
@@ -66,7 +70,7 @@ class OrderTest extends TestCase
 
         $response = $this->postJson('/api/orders', [
             'address_id' => $otherUsersAddress->id,
-            'payment_method' => 'apple_pay',
+            'payment_method' => 'bakong_khqr',
             'shipping_method' => 'dhl',
         ]);
 
@@ -76,7 +80,7 @@ class OrderTest extends TestCase
     public function test_user_can_list_their_orders(): void
     {
         $user = User::factory()->create();
-        \App\Models\Order::factory()->for($user)->count(2)->create();
+        Order::factory()->for($user)->count(2)->create();
         Sanctum::actingAs($user);
 
         $response = $this->getJson('/api/orders');

@@ -20,6 +20,7 @@
     { "name": "Cart" },
     { "name": "Addresses" },
     { "name": "Orders" },
+    { "name": "Payments" },
     { "name": "Users" }
   ],
   "paths": {
@@ -735,7 +736,7 @@
                 "required": ["address_id", "payment_method", "shipping_method"],
                 "properties": {
                   "address_id": { "type": "integer" },
-                  "payment_method": { "type": "string", "enum": ["apple_pay", "paypal", "bakong_khqr"] },
+                  "payment_method": { "type": "string", "enum": ["bakong_khqr"] },
                   "shipping_method": { "type": "string", "enum": ["dhl", "inpost"] }
                 }
               }
@@ -826,6 +827,92 @@
           "403": { "$ref": "#/components/responses/Forbidden" },
           "404": { "$ref": "#/components/responses/NotFound" },
           "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/checkout": {
+      "post": {
+        "tags": ["Payments"],
+        "summary": "Create a Stripe PaymentIntent from the authenticated user's cart",
+        "description": "Creates a pending card order, snapshots the trusted server-side cart, and returns the PaymentIntent client_secret required by Flutter PaymentSheet. Payment is confirmed only by the signed Stripe webhook.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["address_id", "shipping_method"],
+                "properties": {
+                  "address_id": { "type": "integer" },
+                  "shipping_method": { "type": "string", "enum": ["dhl", "inpost"] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Payment sheet initialized successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    { "type": "object", "properties": { "data": { "$ref": "#/components/schemas/StripeCheckout" } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "422": { "$ref": "#/components/responses/ValidationError" },
+          "502": { "description": "Stripe could not create the PaymentIntent" },
+          "503": { "description": "Stripe is not configured" }
+        }
+      }
+    },
+    "/checkout/{order}/cancel": {
+      "post": {
+        "tags": ["Payments"],
+        "summary": "Cancel a pending card PaymentIntent and restore the cart",
+        "parameters": [
+          { "name": "order", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Card payment cancelled and items returned to your cart",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    { "type": "object", "properties": { "data": { "$ref": "#/components/schemas/Order" } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/stripe/webhook": {
+      "post": {
+        "tags": ["Payments"],
+        "summary": "Receive signed Stripe payment events",
+        "description": "Stripe calls this endpoint for payment_intent.succeeded. It verifies Stripe-Signature using STRIPE_WEBHOOK_SECRET, then marks the matching order paid and processing. Do not call this from Flutter.",
+        "security": [],
+        "parameters": [
+          { "name": "Stripe-Signature", "in": "header", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Event received" },
+          "400": { "description": "Invalid payload or webhook signature" },
+          "422": { "description": "Payment data does not match the associated order" },
+          "503": { "description": "Stripe webhook signing secret is not configured" }
         }
       }
     },
@@ -1140,14 +1227,27 @@
           "status": { "type": "string", "enum": ["awaiting_payment", "processing", "shipped", "delivered", "cancelled"] },
           "total": { "type": "integer", "example": 1398 },
           "points_earned": { "type": "integer", "example": 140, "description": "10% of total, credited to the user's points_balance" },
-          "payment_method": { "type": "string", "enum": ["apple_pay", "paypal", "bakong_khqr"] },
-          "payment_status": { "type": "string", "enum": ["pending", "paid"], "description": "pending only while payment_method is bakong_khqr and the QR hasn't been scanned yet" },
+          "payment_method": { "type": "string", "enum": ["card", "bakong_khqr"] },
+          "payment_status": { "type": "string", "enum": ["pending", "paid"], "description": "pending until Bakong or Stripe verifies the payment server-side" },
           "shipping_method": { "type": "string", "enum": ["dhl", "inpost"] },
           "item_count": { "type": "integer", "example": 2, "description": "Sum of item quantities" },
           "date": { "type": "string", "format": "date-time" },
           "customer": { "$ref": "#/components/schemas/OrderCustomer", "description": "Included only in admin order responses" },
           "address": { "$ref": "#/components/schemas/Address" },
           "items": { "type": "array", "items": { "$ref": "#/components/schemas/OrderItem" } }
+        }
+      },
+      "StripeCheckout": {
+        "type": "object",
+        "required": ["order_id", "order_number", "client_secret", "amount", "currency", "publishable_key"],
+        "properties": {
+          "order_id": { "type": "integer" },
+          "order_number": { "type": "string", "example": "FD91793510" },
+          "client_secret": { "type": "string", "description": "Pass only to Stripe PaymentSheet; never log or store it in Flutter." },
+          "amount": { "type": "integer", "example": 2400, "description": "Amount in the smallest currency unit (cents for USD)." },
+          "currency": { "type": "string", "example": "usd" },
+          "publishable_key": { "type": "string", "example": "pk_test_..." },
+          "merchant_display_name": { "type": "string", "example": "Hinata Skincare" }
         }
       },
       "OrderCustomer": {

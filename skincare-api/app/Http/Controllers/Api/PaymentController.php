@@ -61,13 +61,7 @@ class PaymentController extends Controller
         $paid = $this->khqr->isPaid($order->khqr_md5);
 
         if ($paid) {
-            $updates = ['payment_status' => 'paid'];
-
-            if ($order->status === Order::STATUS_AWAITING_PAYMENT) {
-                $updates['status'] = Order::STATUS_PROCESSING;
-            }
-
-            $order->update($updates);
+            $this->orders->markPaymentPaid($order);
         }
 
         return $this->respond(['paid' => $paid], $paid ? 'Payment confirmed' : 'Awaiting payment');

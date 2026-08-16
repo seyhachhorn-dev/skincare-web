@@ -42,4 +42,14 @@ return [
         'merchant_city' => env('BAKONG_MERCHANT_CITY', 'Phnom Penh'),
     ],
 
+    'stripe' => [
+        // The second argument keeps the existing .env names working while
+        // allowing the correctly-spelled names below for all new deploys.
+        'publishable_key' => env('STRIPE_PUBLISHABLE_KEY', env('PUBLISH_STRIPE_KEY')),
+        'secret' => env('STRIPE_SECRET_KEY', env('SECRECT_STRIPE_KEY')),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+        'currency' => env('STRIPE_CURRENCY', 'usd'),
+        'merchant_display_name' => env('STRIPE_MERCHANT_DISPLAY_NAME', 'Hinata Skincare'),
+    ],
+
 ];

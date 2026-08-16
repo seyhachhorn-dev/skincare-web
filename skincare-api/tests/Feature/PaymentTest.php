@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\CartItem;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
@@ -36,7 +37,7 @@ class PaymentTest extends TestCase
     public function test_generating_a_khqr_code_fails_for_a_non_khqr_order(): void
     {
         $user = User::factory()->create();
-        $order = Order::factory()->for($user)->create(['payment_method' => 'apple_pay']);
+        $order = Order::factory()->for($user)->create(['payment_method' => 'card']);
         Sanctum::actingAs($user);
 
         $response = $this->postJson("/api/orders/{$order->id}/khqr");
@@ -61,6 +62,7 @@ class PaymentTest extends TestCase
             'payment_method' => 'bakong_khqr',
             'payment_status' => 'pending',
             'khqr_md5' => 'abc123',
+            'points_earned' => 20,
         ]);
         Sanctum::actingAs($user);
 
@@ -71,7 +73,12 @@ class PaymentTest extends TestCase
         $response = $this->getJson("/api/orders/{$order->id}/khqr/status");
 
         $response->assertOk()->assertJsonPath('data.paid', true);
-        $this->assertDatabaseHas('orders', ['id' => $order->id, 'payment_status' => 'paid']);
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'payment_status' => 'paid',
+            'status' => 'processing',
+        ]);
+        $this->assertDatabaseHas('users', ['id' => $user->id, 'points_balance' => 20]);
     }
 
     public function test_status_check_reports_unpaid_while_bakong_has_not_seen_the_transaction(): void
@@ -111,15 +118,14 @@ class PaymentTest extends TestCase
         $response->assertOk()->assertJsonPath('data.status', 'cancelled');
         $this->assertDatabaseHas('orders', ['id' => $order->id, 'status' => 'cancelled']);
         $this->assertDatabaseHas('cart_items', ['user_id' => $user->id, 'product_id' => $product->id, 'quantity' => 3]);
-        // The points speculatively credited at placeOrder() time are clawed back.
-        $this->assertDatabaseHas('users', ['id' => $user->id, 'points_balance' => 30]);
+        $this->assertDatabaseHas('users', ['id' => $user->id, 'points_balance' => 50]);
     }
 
     public function test_cancelling_a_khqr_order_merges_into_an_existing_cart_item_for_the_same_product(): void
     {
         $user = User::factory()->create();
         $product = Product::factory()->create();
-        \App\Models\CartItem::factory()->for($user)->for($product)->create(['quantity' => 2]);
+        CartItem::factory()->for($user)->for($product)->create(['quantity' => 2]);
         $order = Order::factory()->for($user)->create([
             'payment_method' => 'bakong_khqr',
             'payment_status' => 'pending',
@@ -135,7 +141,7 @@ class PaymentTest extends TestCase
     public function test_cannot_cancel_an_order_that_is_not_a_pending_khqr_order(): void
     {
         $user = User::factory()->create();
-        $order = Order::factory()->for($user)->create(['payment_method' => 'apple_pay']);
+        $order = Order::factory()->for($user)->create(['payment_method' => 'card']);
         Sanctum::actingAs($user);
 
         $response = $this->postJson("/api/orders/{$order->id}/khqr/cancel");

@@ -4,11 +4,13 @@ use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\CheckoutController;
 use App\Http\Controllers\Api\FavoriteController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\StripeWebhookController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -30,6 +32,7 @@ Route::prefix('auth')->group(function () {
 Route::get('products', [ProductController::class, 'index']);
 Route::get('products/{product}', [ProductController::class, 'show']);
 Route::get('categories', [CategoryController::class, 'index']);
+Route::post('stripe/webhook', StripeWebhookController::class);
 
 Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::post('products', [ProductController::class, 'store']);
@@ -62,6 +65,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('cart/items/{cartItem}', [CartController::class, 'destroy']);
 
     Route::apiResource('addresses', AddressController::class)->except(['show']);
+
+    Route::post('checkout', [CheckoutController::class, 'store']);
+    Route::post('checkout/{order}/cancel', [CheckoutController::class, 'cancel']);
 
     Route::get('orders', [OrderController::class, 'index']);
     Route::post('orders', [OrderController::class, 'store']);

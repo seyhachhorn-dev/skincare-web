@@ -17,60 +17,72 @@ class OrderService
     public function placeOrder(User $user, int $addressId, string $paymentMethod, string $shippingMethod): Order
     {
         return DB::transaction(function () use ($user, $addressId, $paymentMethod, $shippingMethod) {
-            $cartItems = $user->cartItems()->with('product')->lockForUpdate()->get();
+            return $this->createPendingOrder($user, $addressId, $paymentMethod, $shippingMethod)
+                ->load(['items.product', 'address']);
+        });
+    }
 
-            if ($cartItems->isEmpty()) {
+    /**
+     * Atomically creates the card order and its Stripe PaymentIntent. If
+     * Stripe rejects the request, the transaction rolls back and the cart is
+     * left untouched for the customer to retry.
+     *
+     * @return array{order: Order, payment_intent: array{id: string, client_secret: string, amount: int, currency: string}}
+     */
+    public function startStripeCheckout(
+        User $user,
+        int $addressId,
+        string $shippingMethod,
+        StripePaymentService $stripe,
+    ): array {
+        return DB::transaction(function () use ($user, $addressId, $shippingMethod, $stripe) {
+            $order = $this->createPendingOrder($user, $addressId, 'card', $shippingMethod);
+
+            if ($order->total < 1) {
                 throw ValidationException::withMessages([
-                    'cart' => 'Your cart is empty.',
+                    'cart' => 'Card payments require a cart total of at least $1.00.',
                 ]);
             }
 
-            $total = $cartItems->sum(fn ($item) => $item->quantity * $item->product->price);
-            $pointsEarned = (int) round($total * 0.1);
+            $paymentIntent = $stripe->createPaymentIntent($order);
 
-            $order = $user->orders()->create([
-                'address_id' => $addressId,
-                'order_number' => $this->generateOrderNumber(),
-                'status' => $paymentMethod === 'bakong_khqr'
-                    ? Order::STATUS_AWAITING_PAYMENT
-                    : Order::STATUS_PROCESSING,
-                'total' => $total,
-                'points_earned' => $pointsEarned,
-                'payment_method' => $paymentMethod,
-                // Apple Pay/PayPal are confirmed by the device's payment
-                // sheet before this request is made; Bakong KHQR is paid
-                // afterwards by scanning the QR code we generate next, so
-                // it starts pending until PaymentController confirms it.
-                'payment_status' => $paymentMethod === 'bakong_khqr' ? 'pending' : 'paid',
-                'shipping_method' => $shippingMethod,
-            ]);
+            $order->update(['stripe_payment_intent_id' => $paymentIntent['id']]);
 
-            foreach ($cartItems as $item) {
-                $order->items()->create([
-                    'product_id' => $item->product_id,
-                    'quantity' => $item->quantity,
-                    'unit_price' => $item->product->price,
-                ]);
-            }
-
-            $user->increment('points_balance', $pointsEarned);
-            $user->cartItems()->delete();
-
-            return $order->load(['items.product', 'address']);
+            return [
+                'order' => $order->load(['items.product', 'address']),
+                'payment_intent' => $paymentIntent,
+            ];
         });
     }
 
     /**
      * Abandon a KHQR order the customer never paid for: releases the
-     * items back into their cart (so nothing is silently lost), reverses
-     * the points speculatively credited in placeOrder(), and marks the
-     * order cancelled. Caller (PaymentController) is responsible for
+     * items back into their cart (so nothing is silently lost), and marks
+     * the order cancelled. Caller (PaymentController) is responsible for
      * checking the order is actually a still-pending KHQR order first.
      */
     public function cancelPendingKhqrOrder(Order $order): Order
     {
+        return $this->cancelPendingOrder($order);
+    }
+
+    /**
+     * Restores a not-yet-paid order's items after a payment flow is
+     * abandoned. The caller is responsible for checking payment-method
+     * specific rules before reaching this shared operation.
+     */
+    public function cancelPendingOrder(Order $order): Order
+    {
         return DB::transaction(function () use ($order) {
-            $order->loadMissing(['items', 'user']);
+            $order = Order::query()->lockForUpdate()->findOrFail($order->id);
+
+            if ($order->payment_status !== 'pending') {
+                throw ValidationException::withMessages([
+                    'payment' => 'Only pending orders can be cancelled.',
+                ]);
+            }
+
+            $order->load(['items', 'user']);
 
             foreach ($order->items as $item) {
                 $cartItem = $order->user->cartItems()->firstOrNew(['product_id' => $item->product_id]);
@@ -78,8 +90,36 @@ class OrderService
                 $cartItem->save();
             }
 
-            $order->user->decrement('points_balance', $order->points_earned);
             $order->update(['status' => Order::STATUS_CANCELLED]);
+
+            return $order;
+        });
+    }
+
+    /**
+     * Called only after a payment provider has verified the charge. It is
+     * idempotent, so a retrying provider webhook cannot credit points twice.
+     */
+    public function markPaymentPaid(Order $order): Order
+    {
+        return DB::transaction(function () use ($order) {
+            $order = Order::query()->lockForUpdate()->findOrFail($order->id);
+
+            if ($order->payment_status === 'paid') {
+                return $order;
+            }
+
+            if ($order->status === Order::STATUS_CANCELLED) {
+                throw ValidationException::withMessages([
+                    'payment' => 'A cancelled order cannot be paid.',
+                ]);
+            }
+
+            $order->update([
+                'payment_status' => 'paid',
+                'status' => Order::STATUS_PROCESSING,
+            ]);
+            $order->user()->increment('points_balance', $order->points_earned);
 
             return $order;
         });
@@ -117,6 +157,47 @@ class OrderService
 
             return $order->load(['user', 'items.product', 'address']);
         });
+    }
+
+    /**
+     * Requires an open transaction. Locks the cart so product quantities and
+     * prices cannot be changed while an order is being created.
+     */
+    private function createPendingOrder(User $user, int $addressId, string $paymentMethod, string $shippingMethod): Order
+    {
+        $cartItems = $user->cartItems()->with('product')->lockForUpdate()->get();
+
+        if ($cartItems->isEmpty()) {
+            throw ValidationException::withMessages([
+                'cart' => 'Your cart is empty.',
+            ]);
+        }
+
+        $total = $cartItems->sum(fn ($item) => $item->quantity * $item->product->price);
+        $pointsEarned = (int) round($total * 0.1);
+
+        $order = $user->orders()->create([
+            'address_id' => $addressId,
+            'order_number' => $this->generateOrderNumber(),
+            'status' => Order::STATUS_AWAITING_PAYMENT,
+            'total' => $total,
+            'points_earned' => $pointsEarned,
+            'payment_method' => $paymentMethod,
+            'payment_status' => 'pending',
+            'shipping_method' => $shippingMethod,
+        ]);
+
+        foreach ($cartItems as $item) {
+            $order->items()->create([
+                'product_id' => $item->product_id,
+                'quantity' => $item->quantity,
+                'unit_price' => $item->product->price,
+            ]);
+        }
+
+        $user->cartItems()->delete();
+
+        return $order;
     }
 
     private function generateOrderNumber(): string

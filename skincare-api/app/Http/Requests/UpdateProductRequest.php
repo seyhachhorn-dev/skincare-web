@@ -17,7 +17,7 @@ class UpdateProductRequest extends FormRequest
             'category_id' => ['sometimes', 'nullable', 'integer', 'exists:categories,id'],
             'name' => ['sometimes', 'string', 'max:255'],
             'description' => ['sometimes', 'nullable', 'string'],
-            'price' => ['sometimes', 'integer', 'min:0'],
+            'price' => ['sometimes', 'integer', 'min:1'],
             'image' => ['sometimes', 'image', 'max:4096'],
             'brand' => ['sometimes', 'nullable', 'string', 'max:255'],
             'size' => ['sometimes', 'nullable', 'string', 'max:255'],

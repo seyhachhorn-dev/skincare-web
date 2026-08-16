@@ -2,12 +2,13 @@
 
 namespace Database\Factories;
 
+use App\Models\Order;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
 /**
- * @extends Factory<\App\Models\Order>
+ * @extends Factory<Order>
  */
 class OrderFactory extends Factory
 {
@@ -20,7 +21,7 @@ class OrderFactory extends Factory
             'status' => 'processing',
             'total' => fake()->numberBetween(500, 5000),
             'points_earned' => fake()->numberBetween(50, 500),
-            'payment_method' => fake()->randomElement(['apple_pay', 'paypal']),
+            'payment_method' => fake()->randomElement(['card', 'bakong_khqr']),
             'payment_status' => 'paid',
             'shipping_method' => fake()->randomElement(['dhl', 'inpost']),
         ];
