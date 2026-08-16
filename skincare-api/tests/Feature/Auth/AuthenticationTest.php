@@ -74,7 +74,10 @@ class AuthenticationTest extends TestCase
             'password' => 'wrong-password',
         ]);
 
-        $response->assertStatus(422)->assertJsonValidationErrors('email');
+        $response
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('email')
+            ->assertJsonPath('message', 'Invalid email or password.');
     }
 
     public function test_protected_endpoint_rejects_request_without_token(): void

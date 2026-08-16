@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Category;
+use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Product;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -39,6 +41,53 @@ class ProductTest extends TestCase
         $response = $this->getJson("/api/products?category_id={$category->id}");
 
         $response->assertOk()->assertJsonCount(1, 'data');
+    }
+
+    public function test_trending_products_are_sorted_by_paid_sales(): void
+    {
+        $mostSold = Product::factory()->create();
+        $lessSold = Product::factory()->create();
+        $unpaidSale = Product::factory()->create();
+
+        $paidOrder = Order::factory()->create(['payment_status' => 'paid']);
+        $unpaidOrder = Order::factory()->create(['payment_status' => 'pending']);
+
+        OrderItem::query()->create([
+            'order_id' => $paidOrder->id,
+            'product_id' => $mostSold->id,
+            'quantity' => 5,
+            'unit_price' => $mostSold->price,
+        ]);
+        OrderItem::query()->create([
+            'order_id' => $paidOrder->id,
+            'product_id' => $lessSold->id,
+            'quantity' => 2,
+            'unit_price' => $lessSold->price,
+        ]);
+        OrderItem::query()->create([
+            'order_id' => $unpaidOrder->id,
+            'product_id' => $unpaidSale->id,
+            'quantity' => 10,
+            'unit_price' => $unpaidSale->price,
+        ]);
+
+        $response = $this->getJson('/api/products?sort=trending');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('data.0.id', (string) $mostSold->id)
+            ->assertJsonPath('data.1.id', (string) $lessSold->id);
+    }
+
+    public function test_new_products_are_sorted_by_creation_date(): void
+    {
+        $oldest = Product::factory()->create();
+        $oldest->forceFill(['created_at' => now()->subDay()])->saveQuietly();
+        $newest = Product::factory()->create();
+
+        $response = $this->getJson('/api/products?sort=new');
+
+        $response->assertOk()->assertJsonPath('data.0.id', (string) $newest->id);
     }
 
     public function test_single_product_can_be_retrieved(): void

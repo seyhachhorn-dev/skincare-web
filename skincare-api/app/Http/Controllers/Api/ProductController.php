@@ -9,16 +9,29 @@ use App\Http\Resources\ProductResource;
 use App\Models\Product;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Storage;
 
 class ProductController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $sort = $request->string('sort')->toString();
+
         $products = Product::query()
             ->when($request->filled('search'), fn ($query) => $query->where('name', 'like', '%'.$request->string('search').'%'))
             ->when($request->filled('category_id'), fn ($query) => $query->where('category_id', $request->integer('category_id')))
-            ->latest()
+            ->when(
+                $sort === 'trending',
+                fn (Builder $query) => $query
+                    ->withSum([
+                        'orderItems as sales_count' => fn (Builder $itemQuery) => $itemQuery
+                            ->whereHas('order', fn (Builder $orderQuery) => $orderQuery->where('payment_status', 'paid')),
+                    ], 'quantity')
+                    ->orderByDesc('sales_count')
+                    ->latest(),
+                fn (Builder $query) => $query->latest(),
+            )
             ->get();
 
         return $this->respond(ProductResource::collection($products), 'Products retrieved successfully');

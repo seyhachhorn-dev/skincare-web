@@ -33,7 +33,7 @@ class AuthController extends Controller
 
         if (! $user || ! Hash::check($request->validated('password'), $user->password)) {
             throw ValidationException::withMessages([
-                'email' => ['These credentials do not match our records.'],
+                'email' => ['Invalid email or password.'],
             ]);
         }
 
