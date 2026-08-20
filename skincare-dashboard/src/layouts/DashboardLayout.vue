@@ -27,7 +27,7 @@ const navigation: NavigationItem[] = [
   { label: 'Categories', icon: LayoutGrid, path: '/categories' },
   { label: 'Customers', icon: UsersRound, path: '/users' },
   { label: 'Favorites', icon: Star, path: '/favorites' },
-  { label: 'Analytics', icon: BarChart3, path: '/analytics' },
+  // { label: 'Analytics', icon: BarChart3, path: '/analytics' },
 ]
 
 const route = useRoute()
