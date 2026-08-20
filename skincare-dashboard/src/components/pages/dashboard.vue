@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, ref, type Ref } from 'vue'
+import { computed, inject, onMounted, ref, type Ref } from 'vue'
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -11,23 +11,39 @@ import {
 } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import api from '@/lib/api'
 
 const search = inject<Ref<string>>('search', ref(''))
 const period = inject<Ref<string>>('period', ref('This month'))
 
-const orders = [
-  { id: '#SK-1048', customer: 'Ava Anderson', initials: 'AA', product: 'Barrier Repair Set', amount: '$86.00', status: 'Paid', tone: 'emerald' },
-  { id: '#SK-1047', customer: 'Mia Campbell', initials: 'MC', product: 'Vitamin C Renewal', amount: '$42.00', status: 'Processing', tone: 'amber' },
-  { id: '#SK-1046', customer: 'Sophia Lee', initials: 'SL', product: 'Daily Glow Routine', amount: '$124.00', status: 'Paid', tone: 'emerald' },
-  { id: '#SK-1045', customer: 'Isabella Hall', initials: 'IH', product: 'Calm + Hydrate Duo', amount: '$58.00', status: 'Shipped', tone: 'blue' },
-]
+const orders = ref<any[]>([])
+const products = ref<any[]>([])
+const users = ref<any[]>([])
+const totalRevenue = computed(() => orders.value.reduce((sum, order) => sum + Number(order.total ?? 0), 0))
+const totalOrders = computed(() => orders.value.length)
+const totalCustomers = computed(() => users.value.length)
+
+onMounted(async () => {
+  try {
+    const [orderResponse, productResponse, userResponse] = await Promise.all([
+      api.get('/admin/orders'),
+      api.get('/products'),
+      api.get('/users'),
+    ])
+    orders.value = orderResponse.data
+    products.value = productResponse.data
+    users.value = userResponse.data
+  } catch (error) {
+    console.error('Failed to fetch dashboard data:', error)
+  }
+})
 
 const filteredOrders = computed(() => {
   const query = search.value.trim().toLowerCase()
-  if (!query) return orders
+  if (!query) return orders.value
 
-  return orders.filter((order) =>
-    [order.id, order.customer, order.product, order.status].some((value) => value.toLowerCase().includes(query)),
+  return orders.value.filter((order) =>
+    [order.order_number, order.customer?.name, order.status].some((value) => String(value ?? '').toLowerCase().includes(query)),
   )
 })
 </script>
@@ -40,9 +56,9 @@ const filteredOrders = computed(() => {
     </div>
 
     <section class="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <Card class="gap-3 border-0 bg-white py-5 shadow-[0_1px_2px_rgba(15,23,42,0.03)] ring-slate-200/80"><CardHeader class="flex-row items-center justify-between px-5 py-0"><CardTitle class="text-sm font-medium text-slate-500">Total revenue</CardTitle><span class="grid size-8 place-items-center rounded-lg bg-emerald-50 text-emerald-700"><BarChart3 class="size-4" /></span></CardHeader><CardContent class="px-5 pt-0"><p class="text-2xl font-semibold tracking-[-0.04em]">$24,780.00</p><p class="mt-2 flex items-center gap-1 text-xs font-medium text-emerald-700"><ArrowUpRight class="size-3.5" /> 12.5% <span class="font-normal text-slate-400">vs. last month</span></p></CardContent></Card>
-      <Card class="gap-3 border-0 bg-white py-5 shadow-[0_1px_2px_rgba(15,23,42,0.03)] ring-slate-200/80"><CardHeader class="flex-row items-center justify-between px-5 py-0"><CardTitle class="text-sm font-medium text-slate-500">Orders</CardTitle><span class="grid size-8 place-items-center rounded-lg bg-violet-50 text-violet-700"><ShoppingBag class="size-4" /></span></CardHeader><CardContent class="px-5 pt-0"><p class="text-2xl font-semibold tracking-[-0.04em]">1,248</p><p class="mt-2 flex items-center gap-1 text-xs font-medium text-emerald-700"><ArrowUpRight class="size-3.5" /> 8.2% <span class="font-normal text-slate-400">vs. last month</span></p></CardContent></Card>
-      <Card class="gap-3 border-0 bg-white py-5 shadow-[0_1px_2px_rgba(15,23,42,0.03)] ring-slate-200/80"><CardHeader class="flex-row items-center justify-between px-5 py-0"><CardTitle class="text-sm font-medium text-slate-500">New customers</CardTitle><span class="grid size-8 place-items-center rounded-lg bg-amber-50 text-amber-700"><UsersRound class="size-4" /></span></CardHeader><CardContent class="px-5 pt-0"><p class="text-2xl font-semibold tracking-[-0.04em]">342</p><p class="mt-2 flex items-center gap-1 text-xs font-medium text-emerald-700"><ArrowUpRight class="size-3.5" /> 4.6% <span class="font-normal text-slate-400">vs. last month</span></p></CardContent></Card>
+      <Card class="gap-3 border-0 bg-white py-5 shadow-[0_1px_2px_rgba(15,23,42,0.03)] ring-slate-200/80"><CardHeader class="flex-row items-center justify-between px-5 py-0"><CardTitle class="text-sm font-medium text-slate-500">Total revenue</CardTitle><span class="grid size-8 place-items-center rounded-lg bg-emerald-50 text-emerald-700"><BarChart3 class="size-4" /></span></CardHeader><CardContent class="px-5 pt-0"><p class="text-2xl font-semibold tracking-[-0.04em]">${{ totalRevenue.toFixed(2) }}</p><p class="mt-2 text-xs text-slate-400">From all recorded orders</p></CardContent></Card>
+      <Card class="gap-3 border-0 bg-white py-5 shadow-[0_1px_2px_rgba(15,23,42,0.03)] ring-slate-200/80"><CardHeader class="flex-row items-center justify-between px-5 py-0"><CardTitle class="text-sm font-medium text-slate-500">Orders</CardTitle><span class="grid size-8 place-items-center rounded-lg bg-violet-50 text-violet-700"><ShoppingBag class="size-4" /></span></CardHeader><CardContent class="px-5 pt-0"><p class="text-2xl font-semibold tracking-[-0.04em]">{{ totalOrders }}</p><p class="mt-2 text-xs text-slate-400">All statuses</p></CardContent></Card>
+      <Card class="gap-3 border-0 bg-white py-5 shadow-[0_1px_2px_rgba(15,23,42,0.03)] ring-slate-200/80"><CardHeader class="flex-row items-center justify-between px-5 py-0"><CardTitle class="text-sm font-medium text-slate-500">Customers</CardTitle><span class="grid size-8 place-items-center rounded-lg bg-amber-50 text-amber-700"><UsersRound class="size-4" /></span></CardHeader><CardContent class="px-5 pt-0"><p class="text-2xl font-semibold tracking-[-0.04em]">{{ totalCustomers }}</p><p class="mt-2 text-xs text-slate-400">Registered accounts</p></CardContent></Card>
       <Card class="gap-3 border-0 bg-white py-5 shadow-[0_1px_2px_rgba(15,23,42,0.03)] ring-slate-200/80"><CardHeader class="flex-row items-center justify-between px-5 py-0"><CardTitle class="text-sm font-medium text-slate-500">Conversion rate</CardTitle><span class="grid size-8 place-items-center rounded-lg bg-rose-50 text-rose-700"><Sparkles class="size-4" /></span></CardHeader><CardContent class="px-5 pt-0"><p class="text-2xl font-semibold tracking-[-0.04em]">4.86%</p><p class="mt-2 flex items-center gap-1 text-xs font-medium text-rose-600"><ArrowDownRight class="size-3.5" /> 0.8% <span class="font-normal text-slate-400">vs. last month</span></p></CardContent></Card>
     </section>
 
@@ -62,7 +78,7 @@ const filteredOrders = computed(() => {
       </Card>
       <Card class="border-0 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)] ring-slate-200/80">
         <CardHeader class="flex flex-row items-center justify-between px-5 pt-5 sm:px-6"><div><CardTitle class="text-base font-semibold">Top products</CardTitle><p class="mt-1 text-sm text-slate-500">By revenue this month</p></div><Button variant="ghost" size="sm" class="text-emerald-700">View all</Button></CardHeader>
-        <CardContent class="space-y-5 px-5 pb-5 pt-3 sm:px-6"><div v-for="product in [{ name: 'Barrier Repair Set', sales: '326 sales', value: '$8,476', color: 'bg-[#dfeade]' }, { name: 'Vitamin C Renewal', sales: '248 sales', value: '$6,944', color: 'bg-[#f5e5bf]' }, { name: 'Daily Glow Routine', sales: '192 sales', value: '$5,376', color: 'bg-[#f4deda]' }, { name: 'Hydration Essentials', sales: '166 sales', value: '$3,984', color: 'bg-[#dce9ef]' }]" :key="product.name" class="flex items-center gap-3"><span :class="product.color" class="grid size-9 place-items-center rounded-lg text-slate-600"><Sparkles class="size-4" /></span><div class="min-w-0 flex-1"><p class="truncate text-sm font-medium">{{ product.name }}</p><p class="text-xs text-slate-500">{{ product.sales }}</p></div><span class="text-sm font-semibold">{{ product.value }}</span></div></CardContent>
+        <CardContent class="space-y-5 px-5 pb-5 pt-3 sm:px-6"><div v-for="product in products.slice(0, 4)" :key="product.id" class="flex items-center gap-3"><span class="grid size-9 place-items-center rounded-lg bg-emerald-50 text-slate-600"><Sparkles class="size-4" /></span><div class="min-w-0 flex-1"><p class="truncate text-sm font-medium">{{ product.name }}</p><p class="text-xs text-slate-500">{{ product.brand || 'Product' }}</p></div><span class="text-sm font-semibold">${{ Number(product.price).toFixed(2) }}</span></div></CardContent>
       </Card>
     </section>
 

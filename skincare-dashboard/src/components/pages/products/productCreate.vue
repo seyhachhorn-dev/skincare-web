@@ -34,101 +34,64 @@
         <div class="row">
           <div class="field">
             <label for="category">Category</label>
-            <select id="category" v-model="form.category" required>
-              <option value="" disabled>Select one</option>
-              <option v-for="c in categories" :key="c" :value="c">{{ c }}</option>
+            <select id="category" v-model="form.categoryId">
+              <option value="">Uncategorized</option>
+              <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
             </select>
           </div>
           <div class="field">
-            <label for="sku">SKU</label>
-            <input id="sku" v-model.trim="form.sku" type="text" placeholder="CD-10-030" required />
+            <label for="brand">Brand</label>
+            <input id="brand" v-model.trim="form.brand" type="text" placeholder="Field Apothecary" />
           </div>
-        </div>
-
-        <div class="field">
-          <label for="tagline">Tagline</label>
-          <input id="tagline" v-model.trim="form.tagline" type="text" maxlength="90" placeholder="One line, under 90 characters" />
-          <span class="hint">{{ form.tagline.length }}/90</span>
         </div>
 
         <div class="field">
           <label for="desc">Description</label>
           <textarea id="desc" v-model.trim="form.description" rows="4" placeholder="What it does, and who it's for." required />
         </div>
-
-        <div class="field">
-          <label>Skin types</label>
-          <div class="checks">
-            <label v-for="t in skinTypeOptions" :key="t" class="check">
-              <input type="checkbox" :value="t" v-model="form.skinTypes" />
-              {{ t }}
-            </label>
-          </div>
-        </div>
       </fieldset>
 
       <fieldset class="section">
-        <legend>Lead actives</legend>
-        <p class="section__hint">Add each active ingredient and the concentration it's dosed at.</p>
-
-        <div v-for="(a, i) in form.actives" :key="i" class="active-row">
-          <input v-model.trim="a.name" type="text" placeholder="Niacinamide" class="active-row__name" />
-          <div class="active-row__pct">
-            <input v-model.number="a.concentration" type="number" min="0" max="100" step="0.1" />
-            <span>%</span>
-          </div>
-          <button type="button" class="icon-btn" @click="removeActive(i)" aria-label="Remove active">×</button>
-        </div>
-        <button type="button" class="btn-ghost" @click="addActive">+ Add active</button>
-      </fieldset>
-
-      <fieldset class="section">
-        <legend>Pricing &amp; inventory</legend>
-        <div class="row">
+        <legend>Pricing &amp; size</legend>
+        <div class="row row--2">
           <div class="field">
-            <label for="price">Price (USD)</label>
-            <input id="price" v-model.number="form.price" type="number" min="0" step="0.01" required />
+            <label for="price">Price (USD, whole numbers)</label>
+            <input id="price" v-model.number="form.price" type="number" min="0" step="1" required />
           </div>
           <div class="field">
             <label for="size">Size</label>
-            <input id="size" v-model.trim="form.size" type="text" placeholder="30 mL / 1 fl oz" required />
-          </div>
-          <div class="field">
-            <label for="stock">Stock quantity</label>
-            <input id="stock" v-model.number="form.stock" type="number" min="0" step="1" required />
+            <input id="size" v-model.trim="form.size" type="text" placeholder="30 mL / 1 fl oz" />
           </div>
         </div>
       </fieldset>
 
       <fieldset class="section">
-        <legend>How to use</legend>
-        <div v-for="(step, i) in form.howToUse" :key="i" class="step-row">
-          <span class="step-row__num">{{ i + 1 }}</span>
-          <input v-model.trim="form.howToUse[i]" type="text" placeholder="Apply to clean, dry skin…" />
-          <button type="button" class="icon-btn" @click="removeStep(i)" aria-label="Remove step">×</button>
-        </div>
-        <button type="button" class="btn-ghost" @click="addStep">+ Add step</button>
-      </fieldset>
-
-      <fieldset class="section">
-        <legend>Full ingredient list (INCI)</legend>
-        <textarea v-model.trim="form.ingredients" rows="3" placeholder="Aqua, Niacinamide, Pentylene Glycol…" required />
-      </fieldset>
-
-      <fieldset class="section">
-        <legend>Image URL</legend>
+        <legend>Product Image</legend>
         <div class="field">
-          <input v-model.trim="form.image" type="url" placeholder="https://…" required />
+          <label for="imageFile">Choose an image</label>
+          <input
+            id="imageFile"
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/svg+xml"
+            @change="selectImage"
+          />
+          <span class="hint">PNG, JPG, WEBP, or SVG up to 4 MB.</span>
         </div>
-        <div v-if="form.image" class="preview">
-          <img :src="form.image" alt="Product preview" @error="imgError = true" @load="imgError = false" />
+        <div class="field">
+          <label for="imageUrl">Or use an image URL</label>
+          <input id="imageUrl" v-model.trim="form.image" type="url" placeholder="https://…" />
+        </div>
+        <div v-if="previewUrl || form.image" class="preview">
+          <img :src="previewUrl || form.image" alt="Product preview" @error="imgError = true" @load="imgError = false" />
           <span v-if="imgError" class="preview__error">Couldn't load that image.</span>
         </div>
       </fieldset>
 
       <div class="actions">
         <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
-        <button type="submit" class="btn-primary">Publish formula</button>
+        <button type="submit" class="btn-primary" :disabled="submitting">
+          {{ submitting ? "Publishing…" : "Publish product" }}
+        </button>
       </div>
             </form>
           </div>
@@ -140,11 +103,16 @@
 
 <script setup>
 import { reactive, ref, watch, onUnmounted } from "vue";
+import api from "@/lib/api";
 
 const props = defineProps({
   modelValue: {
     type: Boolean,
     default: false,
+  },
+  categories: {
+    type: Array,
+    default: () => [],
   },
 });
 
@@ -177,112 +145,125 @@ onUnmounted(() => {
   document.documentElement.style.overflow = "";
 });
 
-const categories = ["Serum", "Moisturizer", "Cleanser", "Treatment", "Sun Care", "Mask"];
-const skinTypeOptions = ["Oily", "Dry", "Combination", "Sensitive", "Normal"];
-
 const imgError = ref(false);
 const errorMsg = ref("");
+const submitting = ref(false);
+const imageFile = ref(null);
+const previewUrl = ref("");
 
 const form = reactive({
   name: "",
-  category: "",
-  sku: "",
-  tagline: "",
+  categoryId: "",
   description: "",
-  skinTypes: [],
-  actives: [{ name: "", concentration: null }],
   price: null,
-  size: "",
-  stock: null,
-  howToUse: [""],
-  ingredients: "",
   image: "",
+  brand: "",
+  size: "",
 });
 
-function addActive() {
-  form.actives.push({ name: "", concentration: null });
-}
-function removeActive(i) {
-  form.actives.splice(i, 1);
-}
-function addStep() {
-  form.howToUse.push("");
-}
-function removeStep(i) {
-  form.howToUse.splice(i, 1);
-}
-
-function handleSubmit() {
+async function handleSubmit() {
   errorMsg.value = "";
 
-  if (!form.actives.some((a) => a.name && a.concentration != null)) {
-    errorMsg.value = "Add at least one active ingredient with a concentration.";
+  if (form.price == null || form.price < 0) {
+    errorMsg.value = "Enter a valid price.";
     return;
   }
-  if (!form.howToUse.some((s) => s.trim())) {
-    errorMsg.value = "Add at least one usage step.";
+  if (!imageFile.value && !form.image) {
+    errorMsg.value = "Choose an image or enter an image URL.";
     return;
   }
 
-  const payload = {
-    ...form,
-    id: form.sku.toLowerCase() || crypto.randomUUID(),
-    actives: form.actives.filter((a) => a.name && a.concentration != null),
-    howToUse: form.howToUse.filter((s) => s.trim()),
-  };
+  submitting.value = true;
+  try {
+    const data = {
+      name: form.name,
+      category_id: form.categoryId || "",
+      description: form.description,
+      price: String(Math.round(form.price)),
+      brand: form.brand || "",
+      size: form.size || "",
+    };
+    let payload = data;
+    let config = undefined;
 
-  emit("create-product", payload);
-  resetForm();
-  close();
+    if (imageFile.value) {
+      const multipart = new FormData();
+      Object.entries(data).forEach(([key, value]) => multipart.append(key, value));
+      multipart.append("image", imageFile.value);
+      payload = multipart;
+      config = { headers: { "Content-Type": "multipart/form-data" } };
+    } else {
+      payload = { ...data, category_id: form.categoryId || null, price: Math.round(form.price), image: form.image };
+    }
+
+    const response = await api.post("/products", payload, config);
+    emit("create-product", response.data);
+    resetForm();
+    close();
+  } catch (error) {
+    console.error("Failed to create product:", error);
+    const response = error?.response?.data;
+    const validationMessage = response?.errors
+      ? Object.values(response.errors).flat()[0]
+      : null;
+    errorMsg.value = validationMessage || response?.message || "An error occurred while saving. Please try again.";
+  } finally {
+    submitting.value = false;
+  }
+}
+
+function selectImage(event) {
+  const file = event.target.files?.[0] ?? null;
+  if (previewUrl.value) URL.revokeObjectURL(previewUrl.value);
+  imageFile.value = file;
+  previewUrl.value = file ? URL.createObjectURL(file) : "";
+  imgError.value = false;
 }
 
 function resetForm() {
   Object.assign(form, {
     name: "",
-    category: "",
-    sku: "",
-    tagline: "",
+    categoryId: "",
     description: "",
-    skinTypes: [],
-    actives: [{ name: "", concentration: null }],
     price: null,
-    size: "",
-    stock: null,
-    howToUse: [""],
-    ingredients: "",
     image: "",
+    brand: "",
+    size: "",
   });
   imgError.value = false;
   errorMsg.value = "";
+  if (previewUrl.value) URL.revokeObjectURL(previewUrl.value);
+  imageFile.value = null;
+  previewUrl.value = "";
 }
 </script>
 
 <style scoped>
-@import "./tokens.css";
+@import "@/assets/tokens.css";
 
 .backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(35, 40, 33, 0.45);
-  backdrop-filter: blur(2px);
+  background: rgba(17, 24, 39, 0.5); /* gray-900/50 */
+  backdrop-filter: blur(4px);
   display: flex;
   justify-content: center;
   align-items: flex-start;
   padding: 4vh 1rem;
   overflow-y: auto;
-  z-index: 1000;
+  z-index: 50;
 }
 
 .intake {
   position: relative;
-  background: var(--bg);
-  color: var(--ink);
-  font-family: var(--font-body);
-  padding: 2.25rem 1.75rem 2.5rem;
+  background: #ffffff;
+  color: #1f2937; /* gray-800 */
+  font-family: inherit;
+  padding: 1.5rem;
   width: 100%;
-  max-width: 680px;
-  border-radius: var(--radius-md);
-  box-shadow: 0 24px 60px -12px rgba(35, 40, 33, 0.45);
+  max-width: 42rem; /* 2xl */
+  border-radius: 1rem; /* 2xl */
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   margin: auto;
 }
 
@@ -403,8 +384,12 @@ function resetForm() {
 
 .row {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 0.9rem;
+}
+
+.row--2 {
+  grid-template-columns: 1fr 1fr;
 }
 
 .row .field {
@@ -448,68 +433,6 @@ select:focus,
 textarea:focus {
   outline: 2px solid var(--moss);
   outline-offset: 1px;
-}
-
-.hint {
-  font-size: 0.72rem;
-  color: var(--ink-faint);
-  align-self: flex-end;
-}
-
-.checks {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-}
-
-.check {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-family: var(--font-body);
-  text-transform: none;
-  letter-spacing: normal;
-  font-size: 0.85rem;
-  color: var(--ink);
-}
-
-.check input {
-  width: auto;
-}
-
-.active-row,
-.step-row {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  margin-bottom: 0.6rem;
-}
-
-.active-row__name {
-  flex: 1;
-}
-
-.active-row__pct {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  width: 90px;
-}
-
-.active-row__pct input {
-  width: 100%;
-}
-
-.step-row__num {
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
-  color: var(--ink-faint);
-  width: 1.2rem;
-  text-align: right;
-}
-
-.step-row input {
-  flex: 1;
 }
 
 .icon-btn {
@@ -587,5 +510,10 @@ textarea:focus {
 
 .btn-primary:hover {
   background: var(--moss-dark);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 </style>

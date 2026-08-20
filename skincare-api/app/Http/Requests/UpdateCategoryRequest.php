@@ -16,7 +16,11 @@ class UpdateCategoryRequest extends FormRequest
     {
         return [
             'name' => ['sometimes', 'string', 'max:255', Rule::unique('categories', 'name')->ignore($this->route('category'))],
-            'icon' => ['sometimes', 'nullable', 'string', 'max:16'],
+            'icon' => [
+                'sometimes',
+                'nullable',
+                Rule::when($this->hasFile('icon'), ['image', 'max:4096'], ['string', 'max:255']),
+            ],
         ];
     }
 }

@@ -82,21 +82,11 @@
   </section>
 </template>
 
-<script setup>
-import { ref } from "vue";
-
-const props = defineProps({
-  product: {
-    type: Object,
-    default: () => defaultProduct,
-  },
-});
-
-defineEmits(["add-to-cart", "back"]);
-
-const qty = ref(1);
-const activeImage = ref(props.product.images?.[0] ?? props.product.image);
-
+<script>
+// Plain module-scope script, separate from <script setup>.
+// defineProps() default-factories are hoisted outside setup(), so they can
+// only see module-scope bindings like this — not consts declared in
+// <script setup> itself.
 const defaultProduct = {
   id: "sp-02",
   sku: "CD-10-030",
@@ -127,8 +117,38 @@ const defaultProduct = {
 };
 </script>
 
+<script setup>
+import { onMounted, ref } from "vue";
+import { useRoute } from "vue-router";
+import api from "@/lib/api";
+
+const props = defineProps({
+  product: {
+    type: Object,
+    default: () => defaultProduct,
+  },
+});
+
+defineEmits(["add-to-cart", "back"]);
+
+const qty = ref(1);
+const activeImage = ref(props.product.images?.[0] ?? props.product.image);
+const route = useRoute();
+
+onMounted(async () => {
+  if (!route.params.id) return;
+  try {
+    const response = await api.get(`/products/${route.params.id}`);
+    Object.assign(props.product, response.data);
+    activeImage.value = props.product.images?.[0] ?? props.product.image;
+  } catch (error) {
+    console.error("Failed to fetch product:", error);
+  }
+});
+</script>
+
 <style scoped>
-@import "./tokens.css";
+@import "@/assets/tokens.css";
 
 .detail {
   background: var(--bg);

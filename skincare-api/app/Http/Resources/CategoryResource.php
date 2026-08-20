@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class CategoryResource extends JsonResource
 {
@@ -12,7 +13,9 @@ class CategoryResource extends JsonResource
         return [
             'id' => (string) $this->id,
             'name' => $this->name,
-            'icon' => $this->icon,
+            'icon' => $this->icon && ! str_starts_with($this->icon, 'http')
+                ? Storage::disk('public')->url($this->icon)
+                : $this->icon,
         ];
     }
 }

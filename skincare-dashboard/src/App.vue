@@ -1,8 +1,4 @@
 <!-- App.vue -->
 <template>
-  <DashboardLayout />
+  <router-view />
 </template>
-
-<script setup>
-import DashboardLayout from '@/layouts/DashboardLayout.vue'
-</script>

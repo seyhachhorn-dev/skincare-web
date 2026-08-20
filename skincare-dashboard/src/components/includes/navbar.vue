@@ -10,7 +10,7 @@ const emit = defineEmits<{
   (e: 'openSidebar'): void
 }>()
 </script>
-
+    
 <template>
     <header
         class="sticky top-0 z-20 flex h-[73px] items-center gap-3 border-b border-slate-200/80 bg-[#f7f8f7]/90 px-5 backdrop-blur lg:px-9">

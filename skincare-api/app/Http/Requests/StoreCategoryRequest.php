@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreCategoryRequest extends FormRequest
 {
@@ -15,7 +16,10 @@ class StoreCategoryRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255', 'unique:categories,name'],
-            'icon' => ['nullable', 'string', 'max:16'],
+            'icon' => [
+                'nullable',
+                Rule::when($this->hasFile('icon'), ['image', 'max:4096'], ['string', 'max:255']),
+            ],
         ];
     }
 }

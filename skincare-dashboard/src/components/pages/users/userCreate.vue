@@ -50,6 +50,16 @@
                 />
               </div>
               <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Temporary Password *</label>
+                <input
+                  v-model="form.password"
+                  type="password"
+                  required
+                  minlength="8"
+                  class="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400"
+                />
+              </div>
+              <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Phone Number</label>
                 <input 
                   v-model="form.phone" 
@@ -154,6 +164,7 @@
 
 <script setup>
 import { reactive, watch } from 'vue'
+import api from '@/lib/api'
 
 const props = defineProps({
   isOpen: Boolean
@@ -164,6 +175,7 @@ const emit = defineEmits(['close', 'created'])
 const initialForm = () => ({
   name: '',
   email: '',
+  password: '',
   phone: '',
   status: 'Active',
   skinType: '',
@@ -184,8 +196,19 @@ const close = () => {
   emit('close')
 }
 
-const handleSubmit = () => {
-  emit('created', { ...form, id: Date.now(), ordersCount: 0, totalSpent: 0.00 })
-  close()
+const handleSubmit = async () => {
+  try {
+    const response = await api.post('/users', {
+      name: form.name,
+      email: form.email,
+      password: form.password,
+      password_confirmation: form.password,
+    })
+    emit('created', response.data)
+    close()
+  } catch (error) {
+    console.error('Failed to create customer:', error)
+    window.alert('Unable to create customer. Please check the form and try again.')
+  }
 }
 </script>

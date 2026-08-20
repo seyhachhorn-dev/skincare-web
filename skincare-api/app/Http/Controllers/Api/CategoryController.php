@@ -8,6 +8,7 @@ use App\Http\Requests\UpdateCategoryRequest;
 use App\Http\Resources\CategoryResource;
 use App\Models\Category;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Storage;
 
 class CategoryController extends Controller
 {
@@ -21,20 +22,37 @@ class CategoryController extends Controller
 
     public function store(StoreCategoryRequest $request): JsonResponse
     {
-        $category = Category::query()->create($request->validated());
+        $data = $request->validated();
+        $data['icon'] = $request->hasFile('icon')
+            ? $request->file('icon')->store('categories', 'public')
+            : ($request->input('icon') ?? '');
+
+        $category = Category::query()->create($data);
 
         return $this->respond(new CategoryResource($category), 'Category created', 201);
     }
 
     public function update(UpdateCategoryRequest $request, Category $category): JsonResponse
     {
-        $category->update($request->validated());
+        $data = $request->validated();
+
+        if ($request->hasFile('icon')) {
+            if ($category->icon) {
+                Storage::disk('public')->delete($category->icon);
+            }
+            $data['icon'] = $request->file('icon')->store('categories', 'public');
+        }
+
+        $category->update($data);
 
         return $this->respond(new CategoryResource($category->fresh()), 'Category updated');
     }
 
     public function destroy(Category $category): JsonResponse
     {
+        if ($category->icon) {
+            Storage::disk('public')->delete($category->icon);
+        }
         $category->delete();
 
         return $this->respond(null, 'Category deleted');

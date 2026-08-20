@@ -50,7 +50,13 @@ return Application::configure(basePath: dirname(__DIR__))
                 return null;
             }
 
-            if ($e instanceof AuthenticationException || $e instanceof ValidationException) {
+            if ($e instanceof AuthenticationException) {
+                return response()->json([
+                    'message' => 'Authentication required. Please sign in as an administrator.',
+                ], 401);
+            }
+
+            if ($e instanceof ValidationException) {
                 return null;
             }
 

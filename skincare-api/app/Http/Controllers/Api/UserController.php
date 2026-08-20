@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRoleRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
@@ -10,6 +11,13 @@ use Illuminate\Http\JsonResponse;
 
 class UserController extends Controller
 {
+    public function store(StoreUserRequest $request): JsonResponse
+    {
+        $user = User::query()->create($request->validated());
+
+        return $this->respond(new UserResource($user), 'User created', 201);
+    }
+
     public function index(): JsonResponse
     {
         $users = User::query()->orderBy('name')->get();
