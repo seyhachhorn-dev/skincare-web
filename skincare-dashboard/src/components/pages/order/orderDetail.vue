@@ -36,7 +36,7 @@
           :disabled="savingStatus"
           @change="saveStatus"
         >
-          <option value="pending">Pending</option>
+          <option value="awaiting_payment">Awaiting payment</option>
           <option value="processing">Processing</option>
           <option value="shipped">Shipped</option>
           <option value="delivered">Delivered</option>
@@ -272,7 +272,7 @@ const currentStepIndex = computed(() => {
 
 function statusLabel(status) {
   return {
-    pending: "Pending",
+    awaiting_payment: "Awaiting payment",
     processing: "Processing",
     shipped: "Shipped",
     delivered: "Delivered",
@@ -359,10 +359,11 @@ async function saveTracking() {
   }
 }
 
-function confirmCancel() {
-  if (window.confirm(`Cancel order #${order.value.number}? This can't be undone.`)) {
-    emit("cancel-order", order.value);
-  }
+async function confirmCancel() {
+  if (!window.confirm(`Cancel order #${order.value.number}? This can't be undone.`)) return;
+  localStatus.value = "cancelled";
+  await saveStatus();
+  emit("cancel-order", order.value);
 }
 </script>
 

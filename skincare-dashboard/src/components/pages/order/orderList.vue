@@ -17,7 +17,7 @@
       />
       <select v-model="filterStatus" class="filter">
         <option value="">All statuses</option>
-        <option value="pending">Pending</option>
+        <option value="awaiting_payment">Awaiting payment</option>
         <option value="processing">Processing</option>
         <option value="shipped">Shipped</option>
         <option value="delivered">Delivered</option>
@@ -153,7 +153,7 @@ function normalizeOrder(order) {
 
 function statusLabel(status) {
   return {
-    pending: "Pending",
+    awaiting_payment: "Awaiting payment",
     processing: "Processing",
     shipped: "Shipped",
     delivered: "Delivered",
@@ -360,7 +360,7 @@ function formatDate(iso) {
   display: inline-block;
 }
 
-.status-badge--pending {
+.status-badge--awaiting_payment {
   background: var(--surface-alt, #f4f4f0);
   color: var(--ink-soft, #6b7280);
 }

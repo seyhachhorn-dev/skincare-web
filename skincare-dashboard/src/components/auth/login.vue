@@ -1,9 +1,7 @@
 <template>
   <main class="login-page">
-    <form class="login-card" @submit.prevent="submit">
-      <p class="eyebrow">Skincare Dashboard</p>
+    <form class="login-form" @submit.prevent="submit">
       <h1>Admin sign in</h1>
-      <p class="intro">Sign in to manage products, categories, customers, and orders.</p>
 
       <label for="email">Email</label>
       <input id="email" v-model.trim="form.email" type="email" autocomplete="email" required />
@@ -51,25 +49,20 @@ async function submit() {
   display: grid;
   place-items: center;
   padding: 1.5rem;
-  background: #eef0e6;
+  background: #fff;
 }
 
-.login-card {
-  width: min(100%, 26rem);
+.login-form {
+  width: min(100%, 22rem);
   display: grid;
   gap: 0.65rem;
-  padding: 2rem;
-  border-radius: 1rem;
-  background: #fff;
-  box-shadow: 0 20px 40px rgba(35, 40, 33, 0.12);
 }
 
-h1 { margin: 0; color: #3a4a35; font-size: 2rem; }
-.intro { margin: 0 0 1rem; color: #5c6357; }
+h1 { margin: 0 0 0.75rem; color: #232821; font-size: 1.5rem; font-weight: 600; }
 label { color: #5c6357; font-size: 0.8rem; font-weight: 600; }
 input { padding: 0.75rem; border: 1px solid #d3d6c6; border-radius: 0.35rem; }
+input:focus { outline: 2px solid #566b4f; outline-offset: 1px; }
 button { margin-top: 0.5rem; padding: 0.75rem; border: 0; border-radius: 0.35rem; background: #566b4f; color: #fff; cursor: pointer; }
 button:disabled { opacity: 0.6; cursor: wait; }
-.eyebrow { margin: 0; color: #b9863e; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
-.error { margin: 0.5rem 0 0; color: #a6493a; }
+.error { margin: 0.5rem 0 0; color: #a6493a; font-size: 0.85rem; }
 </style>

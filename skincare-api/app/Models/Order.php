@@ -36,6 +36,7 @@ class Order extends Model
     public const FULFILLMENT_STATUSES = [
         self::STATUS_SHIPPED,
         self::STATUS_DELIVERED,
+        self::STATUS_CANCELLED,
     ];
 
     protected $appends = ['item_count'];

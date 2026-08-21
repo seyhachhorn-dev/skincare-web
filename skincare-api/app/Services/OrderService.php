@@ -142,8 +142,8 @@ class OrderService
             }
 
             $allowedNextStatuses = match ($order->status) {
-                Order::STATUS_PROCESSING => [Order::STATUS_SHIPPED, Order::STATUS_DELIVERED],
-                Order::STATUS_SHIPPED => [Order::STATUS_DELIVERED],
+                Order::STATUS_PROCESSING => [Order::STATUS_SHIPPED, Order::STATUS_DELIVERED, Order::STATUS_CANCELLED],
+                Order::STATUS_SHIPPED => [Order::STATUS_DELIVERED, Order::STATUS_CANCELLED],
                 default => [],
             };
 
