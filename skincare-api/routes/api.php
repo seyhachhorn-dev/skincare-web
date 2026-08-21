@@ -46,6 +46,7 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::delete('categories/{category}', [CategoryController::class, 'destroy']);
 
     Route::get('users', [UserController::class, 'index']);
+    Route::post('users', [UserController::class, 'store']);
     Route::patch('users/{user}/role', [UserController::class, 'updateRole']);
 
     Route::get('admin/orders', [OrderController::class, 'adminIndex']);

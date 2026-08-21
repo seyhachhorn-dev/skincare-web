@@ -44,10 +44,12 @@ class ProductController extends Controller
 
     public function store(StoreProductRequest $request): JsonResponse
     {
-        $product = Product::query()->create([
-            ...$request->safe()->except('image'),
-            'image' => $request->file('image')->store('products', 'public'),
-        ]);
+        $data = $request->validated();
+        $data['image'] = $request->hasFile('image')
+            ? $request->file('image')->store('products', 'public')
+            : $request->input('image');
+
+        $product = Product::query()->create($data);
 
         return $this->respond(new ProductResource($product), 'Product created', 201);
     }
