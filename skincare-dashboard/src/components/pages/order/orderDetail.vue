@@ -1,7 +1,7 @@
 <template>
   <section class="detail">
     <div class="topbar">
-      <button type="button" class="back" @click="$emit('back')">← Back to orders</button>
+      <button type="button" class="back" @click="goBack">← Back to orders</button>
       <div class="topbar__actions">
         <button type="button" class="btn-ghost" @click="$emit('print-invoice', order)">
           Print invoice
@@ -25,10 +25,31 @@
           Placed {{ formatDate(order.placedAt) }} · {{ order.items.length }} item{{ order.items.length === 1 ? "" : "s" }}
         </p>
       </div>
-      <span class="status-badge" :class="`status-badge--${order.status}`">
-        {{ statusLabel(order.status) }}
-      </span>
+
+      <div class="head__status">
+        <label for="status" class="head__status-label">Status</label>
+        <select
+          id="status"
+          v-model="localStatus"
+          class="head__status-select"
+          :class="`head__status-select--${localStatus}`"
+          :disabled="savingStatus"
+          @change="saveStatus"
+        >
+          <option value="pending">Pending</option>
+          <option value="processing">Processing</option>
+          <option value="shipped">Shipped</option>
+          <option value="delivered">Delivered</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+        <span v-if="savingStatus" class="head__status-saving">Saving…</span>
+      </div>
     </header>
+
+    <div class="tracking-inline" v-if="localStatus === 'shipped' || order.trackingNumber">
+      <label for="tracking">Tracking number</label>
+      <input id="tracking" v-model.trim="trackingInput" type="text" placeholder="1Z999AA10123456784" @blur="saveTracking" />
+    </div>
 
     <ol class="timeline" v-if="order.status !== 'cancelled'">
       <li
@@ -107,24 +128,6 @@
       </div>
 
       <aside class="side">
-        <div class="panel">
-          <h2 class="panel__title">Update status</h2>
-          <div class="field">
-            <label for="status">Order status</label>
-            <select id="status" v-model="localStatus" @change="handleStatusChange">
-              <option value="pending">Pending</option>
-              <option value="processing">Processing</option>
-              <option value="shipped">Shipped</option>
-              <option value="delivered">Delivered</option>
-            </select>
-          </div>
-          <div class="field" v-if="localStatus === 'shipped' || order.trackingNumber">
-            <label for="tracking">Tracking number</label>
-            <input id="tracking" v-model.trim="trackingInput" type="text" placeholder="1Z999AA10123456784" />
-          </div>
-          <button type="button" class="btn-primary" @click="saveStatus">Save</button>
-        </div>
-
         <div class="panel">
           <h2 class="panel__title">Customer</h2>
           <p class="customer__name">{{ order.customer.name }}</p>
@@ -211,10 +214,15 @@ const defaultOrder = {
 </script>
 
 <script setup>
-import { ref, computed, watch } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
+import { useRouter } from "vue-router";
 import api from "@/lib/api";
 
 const props = defineProps({
+  id: {
+    type: [String, Number],
+    default: "",
+  },
   order: {
     type: Object,
     default: () => defaultOrder,
@@ -222,29 +230,43 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["back", "update-status", "cancel-order", "print-invoice"]);
+const router = useRouter();
 
-const localStatus = ref(props.order.status === "cancelled" ? "pending" : props.order.status);
+const order = ref(props.order);
+const localStatus = ref(props.order.status);
 const trackingInput = ref(props.order.trackingNumber || "");
 
-watch(
-  () => props.order,
-  (o) => {
-    localStatus.value = o.status === "cancelled" ? "pending" : o.status;
-    trackingInput.value = o.trackingNumber || "";
+onMounted(async () => {
+  if (!props.id) return;
+  try {
+    const response = await api.get("/admin/orders");
+    const found = response.data.find((item) => String(item.id) === String(props.id));
+    if (found) order.value = normalizeOrder(found);
+  } catch (error) {
+    console.error("Failed to fetch order:", error);
   }
+});
+
+watch(
+  () => order.value,
+  (o) => {
+    localStatus.value = o.status;
+    trackingInput.value = o.trackingNumber || "";
+  },
+  { immediate: true }
 );
 
 const timelineSteps = computed(() => [
-  { key: "pending", label: "Placed", date: props.order.placedAt },
-  { key: "processing", label: "Processing", date: props.order.placedAt },
-  { key: "shipped", label: "Shipped", date: props.order.shippedAt },
-  { key: "delivered", label: "Delivered", date: props.order.deliveredAt },
+  { key: "pending", label: "Placed", date: order.value.placedAt },
+  { key: "processing", label: "Processing", date: order.value.placedAt },
+  { key: "shipped", label: "Shipped", date: order.value.shippedAt },
+  { key: "delivered", label: "Delivered", date: order.value.deliveredAt },
 ]);
 
 const statusOrder = ["pending", "processing", "shipped", "delivered"];
 
 const currentStepIndex = computed(() => {
-  const idx = statusOrder.indexOf(props.order.status);
+  const idx = statusOrder.indexOf(order.value.status);
   return idx === -1 ? 0 : idx;
 });
 
@@ -267,26 +289,79 @@ function formatDate(iso) {
   });
 }
 
+function normalizeOrder(rawOrder) {
+  const items = (rawOrder.items ?? []).map((item) => ({
+    id: item.id,
+    name: item.product?.name ?? "Product",
+    category: item.product?.brand ?? "Skincare",
+    activeIngredient: item.product?.description ?? "",
+    price: Number(item.unit_price ?? item.product?.price ?? 0),
+    qty: Number(item.quantity ?? 0),
+    image: item.product?.image ?? "",
+  }));
+  const total = Number(rawOrder.total ?? 0);
+  return {
+    ...rawOrder,
+    number: String(rawOrder.order_number ?? rawOrder.id),
+    placedAt: rawOrder.date,
+    trackingNumber: rawOrder.tracking_number ?? "",
+    shippedAt: rawOrder.shipped_at ?? null,
+    deliveredAt: rawOrder.delivered_at ?? null,
+    cancelledAt: rawOrder.cancelled_at ?? null,
+    items,
+    subtotal: total,
+    shipping: 0,
+    tax: 0,
+    discount: 0,
+    total,
+    customer: rawOrder.customer ?? { name: "", email: "", phone: "" },
+    shippingAddress: rawOrder.address ?? { line1: "", line2: "", city: "", state: "", zip: "", country: "" },
+    payment: { method: rawOrder.payment_method ?? "", last4: "" },
+  };
+}
+
+const savingStatus = ref(false);
+
+function goBack() {
+  router.push({ name: "Orders" });
+}
+
 async function saveStatus() {
+  const previousStatus = order.value.status;
+  savingStatus.value = true;
   try {
-    const response = await api.patch(`/admin/orders/${props.order.id}/status`, {
+    const response = await api.patch(`/admin/orders/${order.value.id}/status`, {
       status: localStatus.value,
     });
-    emit("update-status", response.data);
+    order.value = normalizeOrder(response.data);
+    emit("update-status", order.value);
   } catch (error) {
     console.error("Failed to update order status:", error);
     window.alert("Unable to update this order. Please try again.");
+    localStatus.value = previousStatus;
+  } finally {
+    savingStatus.value = false;
   }
 }
 
-function handleStatusChange() {
-  // Left as a hook — currently just updates local state; actual persistence
-  // happens when "Save" is pressed via saveStatus().
+async function saveTracking() {
+  if (trackingInput.value === (order.value.trackingNumber || "")) return;
+  try {
+    const response = await api.patch(`/admin/orders/${order.value.id}/status`, {
+      status: localStatus.value,
+      tracking_number: trackingInput.value,
+    });
+    order.value = normalizeOrder(response.data);
+    emit("update-status", order.value);
+  } catch (error) {
+    console.error("Failed to update tracking number:", error);
+    window.alert("Unable to save tracking number. Please try again.");
+  }
 }
 
 function confirmCancel() {
-  if (window.confirm(`Cancel order #${props.order.number}? This can't be undone.`)) {
-    emit("cancel-order", props.order);
+  if (window.confirm(`Cancel order #${order.value.number}? This can't be undone.`)) {
+    emit("cancel-order", order.value);
   }
 }
 </script>
@@ -360,7 +435,7 @@ function confirmCancel() {
   max-width: 1080px;
   margin: 0 auto 2rem;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
@@ -422,6 +497,97 @@ function confirmCancel() {
 .status-badge--cancelled {
   background: #f0dcd8;
   color: var(--danger);
+}
+
+.head__status {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-shrink: 0;
+}
+
+.head__status-label {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.head__status-select {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 600;
+  padding: 0.45rem 2rem 0.45rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  cursor: pointer;
+  appearance: none;
+  background-color: var(--surface-alt);
+  color: var(--ink-soft);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 0.8rem center;
+}
+
+.head__status-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.head__status-select--processing {
+  background-color: var(--amber-soft);
+  color: var(--amber);
+}
+
+.head__status-select--shipped {
+  background-color: #dfe6da;
+  color: var(--moss-dark);
+}
+
+.head__status-select--delivered {
+  background-color: var(--moss);
+  color: #fff;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%23ffffff' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+}
+
+.head__status-select--cancelled {
+  background-color: #f0dcd8;
+  color: var(--danger);
+}
+
+.head__status-saving {
+  font-size: 0.78rem;
+  color: var(--ink-faint);
+}
+
+.tracking-inline {
+  max-width: 1080px;
+  margin: -1rem auto 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.tracking-inline label {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.tracking-inline input {
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  width: 220px;
 }
 
 .timeline {

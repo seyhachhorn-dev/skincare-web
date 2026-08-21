@@ -287,8 +287,8 @@ input {
   min-width: 10rem;
   padding: 0.7rem 1rem;
   border: 0;
-  border-radius: var(--radius-sm);
-  background: var(--moss);
+  border-radius: var(--radius-sm, 0.5rem);
+  background: var(--moss, #059669);
   color: #fff;
   cursor: pointer;
 }

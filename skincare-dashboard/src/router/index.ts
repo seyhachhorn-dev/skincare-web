@@ -13,6 +13,7 @@ import ProductCreate from "@/components/pages/products/productCreate.vue";
 import FavoriteList from "@/components/pages/favorites/favorites.vue";
 import Login from "@/components/auth/login.vue";
 import Profile from "@/components/auth/profile.vue";
+import OrderList from "@/components/pages/order/orderList.vue";
 
 const routes = [
   {
@@ -33,7 +34,7 @@ const routes = [
       {
         path: "orders",
         name: "Orders",
-        component: OrderDetail,
+        component: OrderList,
       },
       {
         path: "orders/:id",

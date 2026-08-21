@@ -1,98 +1,85 @@
 <template>
   <Teleport to="body">
     <Transition name="backdrop">
-      <div
-        v-if="modelValue"
-        class="backdrop"
-        @mousedown.self="close"
-      >
+      <div v-if="modelValue" class="backdrop" @mousedown.self="close">
         <Transition name="panel" appear>
-          <div
-            v-if="modelValue"
-            class="intake"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="intake-title"
-          >
+          <div v-if="modelValue" class="intake" role="dialog" aria-modal="true" aria-labelledby="intake-title">
             <button type="button" class="close-btn" aria-label="Close" @click="close">×</button>
 
             <header class="intake__head">
-              <p class="eyebrow">Field Apothecary — Intake Ticket</p>
               <h1 id="intake-title" class="intake__title">List a New Formula</h1>
               <p class="intake__sub">Fill in the label exactly as it should read to a customer.</p>
             </header>
 
             <form class="form" @submit.prevent="handleSubmit">
-      <fieldset class="section">
-        <legend>General</legend>
 
-        <div class="field">
-          <label for="name">Product name</label>
-          <input id="name" v-model.trim="form.name" type="text" placeholder="Clarity Drops" required />
-        </div>
+              <fieldset class="section">
+                <legend>Product Image</legend>
+                <div class="field">
+                  <label for="imageFile">Choose an image</label>
+                  <input id="imageFile" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                    @change="selectImage" />
+                  <span class="hint">PNG, JPG, WEBP, or SVG up to 4 MB.</span>
+                </div>
+                <div class="field">
+                  <label for="imageUrl">Or use an image URL</label>
+                  <input id="imageUrl" v-model.trim="form.image" type="url" placeholder="https://…" />
+                </div>
+                <div v-if="previewUrl || form.image" class="preview">
+                  <img :src="previewUrl || form.image" alt="Product preview" @error="imgError = true"
+                    @load="imgError = false" />
+                  <span v-if="imgError" class="preview__error">Couldn't load that image.</span>
+                </div>
+              </fieldset>
 
-        <div class="row">
-          <div class="field">
-            <label for="category">Category</label>
-            <select id="category" v-model="form.categoryId">
-              <option value="">Uncategorized</option>
-              <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="brand">Brand</label>
-            <input id="brand" v-model.trim="form.brand" type="text" placeholder="Field Apothecary" />
-          </div>
-        </div>
+              <fieldset class="section">
+                <legend>General</legend>
 
-        <div class="field">
-          <label for="desc">Description</label>
-          <textarea id="desc" v-model.trim="form.description" rows="4" placeholder="What it does, and who it's for." required />
-        </div>
-      </fieldset>
+                <div class="field">
+                  <label for="name">Product name</label>
+                  <input id="name" v-model.trim="form.name" type="text" placeholder="Clarity Drops" required />
+                </div>
 
-      <fieldset class="section">
-        <legend>Pricing &amp; size</legend>
-        <div class="row row--2">
-          <div class="field">
-            <label for="price">Price (USD, whole numbers)</label>
-            <input id="price" v-model.number="form.price" type="number" min="0" step="1" required />
-          </div>
-          <div class="field">
-            <label for="size">Size</label>
-            <input id="size" v-model.trim="form.size" type="text" placeholder="30 mL / 1 fl oz" />
-          </div>
-        </div>
-      </fieldset>
+                <div class="row">
+                  <div class="field">
+                    <label for="category">Category</label>
+                    <select id="category" v-model="form.categoryId">
+                      <option value="">Uncategorized</option>
+                      <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="brand">Brand</label>
+                    <input id="brand" v-model.trim="form.brand" type="text" placeholder="Field Apothecary" />
+                  </div>
+                </div>
 
-      <fieldset class="section">
-        <legend>Product Image</legend>
-        <div class="field">
-          <label for="imageFile">Choose an image</label>
-          <input
-            id="imageFile"
-            type="file"
-            accept="image/png,image/jpeg,image/webp,image/svg+xml"
-            @change="selectImage"
-          />
-          <span class="hint">PNG, JPG, WEBP, or SVG up to 4 MB.</span>
-        </div>
-        <div class="field">
-          <label for="imageUrl">Or use an image URL</label>
-          <input id="imageUrl" v-model.trim="form.image" type="url" placeholder="https://…" />
-        </div>
-        <div v-if="previewUrl || form.image" class="preview">
-          <img :src="previewUrl || form.image" alt="Product preview" @error="imgError = true" @load="imgError = false" />
-          <span v-if="imgError" class="preview__error">Couldn't load that image.</span>
-        </div>
-      </fieldset>
+                <div class="field">
+                  <label for="desc">Description</label>
+                  <textarea id="desc" v-model.trim="form.description" rows="4"
+                    placeholder="What it does, and who it's for." required />
+                </div>
+              </fieldset>
 
-      <div class="actions">
-        <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
-        <button type="submit" class="btn-primary" :disabled="submitting">
-          {{ submitting ? "Publishing…" : "Publish product" }}
-        </button>
-      </div>
+              <fieldset class="section">
+                <legend>Pricing &amp; size</legend>
+                <div class="row row--2">
+                  <div class="field">
+                    <label for="price">Price (USD, whole numbers)</label>
+                    <input id="price" v-model.number="form.price" type="number" min="0" step="1" required />
+                  </div>
+                  <div class="field">
+                    <label for="size">Size</label>
+                    <input id="size" v-model.trim="form.size" type="text" placeholder="30 mL / 1 fl oz" />
+                  </div>
+                </div>
+              </fieldset>
+              <div class="actions">
+                <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
+                <button type="submit" class="btn-primary" :disabled="submitting">
+                  {{ submitting ? "Publishing…" : "Publish product" }}
+                </button>
+              </div>
             </form>
           </div>
         </Transition>
@@ -244,7 +231,8 @@ function resetForm() {
 .backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(17, 24, 39, 0.5); /* gray-900/50 */
+  background: rgba(17, 24, 39, 0.5);
+  /* gray-900/50 */
   backdrop-filter: blur(4px);
   display: flex;
   justify-content: center;
@@ -257,12 +245,15 @@ function resetForm() {
 .intake {
   position: relative;
   background: #ffffff;
-  color: #1f2937; /* gray-800 */
+  color: #1f2937;
+  /* gray-800 */
   font-family: inherit;
   padding: 1.5rem;
   width: 100%;
-  max-width: 42rem; /* 2xl */
-  border-radius: 1rem; /* 2xl */
+  max-width: 42rem;
+  /* 2xl */
+  border-radius: 1rem;
+  /* 2xl */
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   margin: auto;
 }
@@ -302,9 +293,11 @@ function resetForm() {
 .backdrop-enter-active {
   transition: opacity 0.15s var(--ease);
 }
+
 .backdrop-leave-active {
   transition: opacity 0.12s var(--ease);
 }
+
 .backdrop-enter-from,
 .backdrop-leave-to {
   opacity: 0;
@@ -313,9 +306,11 @@ function resetForm() {
 .panel-enter-active {
   transition: transform 0.16s var(--ease), opacity 0.16s var(--ease);
 }
+
 .panel-leave-active {
   transition: transform 0.1s var(--ease), opacity 0.1s var(--ease);
 }
+
 .panel-enter-from,
 .panel-leave-to {
   opacity: 0;
@@ -496,20 +491,20 @@ textarea:focus {
 }
 
 .btn-primary {
-  background: var(--moss);
+  background: var(--moss, #059669);
   color: #fff;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-sm, 0.5rem);
   padding: 0.85rem 1.5rem;
-  font-family: var(--font-body);
+  font-family: var(--font-body, inherit);
   font-weight: 600;
   font-size: 0.95rem;
   cursor: pointer;
-  transition: background 0.15s var(--ease);
+  transition: background 0.15s var(--ease, ease);
 }
 
 .btn-primary:hover {
-  background: var(--moss-dark);
+  background: var(--moss-dark, #047857);
 }
 
 .btn-primary:disabled {

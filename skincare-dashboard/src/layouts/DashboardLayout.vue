@@ -32,7 +32,9 @@ const navigation: NavigationItem[] = [
 
 const route = useRoute()
 const activeNav = computed(() => {
-  const currentRoute = navigation.find(item => item.path === route.path)
+  const currentRoute = navigation.find(item =>
+    item.path === '/' ? route.path === '/' : route.path.startsWith(item.path),
+  )
   return currentRoute ? currentRoute.label : ''
 })
 
